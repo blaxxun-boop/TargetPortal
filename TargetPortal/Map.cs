@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
+using Groups;
 using HarmonyLib;
 using UnityEngine;
 
@@ -24,9 +26,15 @@ public static class Map
 			Teleporting = true;
 			Minimap.instance.ShowPointOnMap(__instance.transform.position);
 
+			string? mySteamId = TargetPortal.readLocalSteamID();
 			foreach (ZDO zdo in TargetPortal.knownPortals)
 			{
-				activePins.Add(Minimap.instance.AddPin(zdo.m_position, (Minimap.PinType)AddMinimapPortalIcon.pinType, zdo.GetString("tag"), false, false), zdo);
+				TargetPortal.PortalMode mode = (TargetPortal.PortalMode)zdo.GetInt("TargetPortal PortalMode");
+				string ownerString = zdo.GetString("TargetPortal PortalOwnerId");
+				if (TargetPortal.allowNonPublicPortals.Value == TargetPortal.Toggle.Off || mode == TargetPortal.PortalMode.Public || ownerString == mySteamId || (mode == TargetPortal.PortalMode.Group && API.GroupPlayers().Contains(PlayerReference.fromPlayerInfo(ZNet.instance.m_players.FirstOrDefault(p => p.m_host == ownerString)))))
+				{
+					activePins.Add(Minimap.instance.AddPin(zdo.m_position, (Minimap.PinType)AddMinimapPortalIcon.pinType, zdo.GetString("tag"), false, false), zdo);
+				}
 			}
 
 			return false;

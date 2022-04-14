@@ -1,9 +1,11 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
+using Groups;
 using HarmonyLib;
 using JetBrains.Annotations;
 using ServerSync;
@@ -12,18 +14,23 @@ using UnityEngine;
 namespace TargetPortal;
 
 [BepInPlugin(ModGUID, ModName, ModVersion)]
+[BepInDependency("org.bepinex.plugins.groups", BepInDependency.DependencyFlags.SoftDependency)]
 public class TargetPortal : BaseUnityPlugin
 {
 	private const string ModName = "TargetPortal";
-	private const string ModVersion = "1.0.0";
+	private const string ModVersion = "1.1.0";
 	private const string ModGUID = "org.bepinex.plugins.targetportal";
 
 	public static List<ZDO> knownPortals = new();
 	public static Sprite portalIcon = null!;
 
+	public static string? readLocalSteamID() => Type.GetType("Steamworks.SteamUser, assembly_steamworks")?.GetMethod("GetSteamID")!.Invoke(null, Array.Empty<object>()).ToString();
+
 	private static readonly ConfigSync configSync = new(ModName) { DisplayName = ModName, CurrentVersion = ModVersion, MinimumRequiredVersion = ModVersion };
 
 	private static ConfigEntry<Toggle> serverConfigLocked = null!;
+	public static ConfigEntry<Toggle> allowNonPublicPortals = null!;
+	private static ConfigEntry<KeyboardShortcut> portalModeToggleModifierKey = null!;
 
 	private ConfigEntry<T> config<T>(string group, string name, T value, ConfigDescription description, bool synchronizedSetting = true)
 	{
@@ -37,16 +44,25 @@ public class TargetPortal : BaseUnityPlugin
 
 	private ConfigEntry<T> config<T>(string group, string name, T value, string description, bool synchronizedSetting = true) => config(group, name, value, new ConfigDescription(description), synchronizedSetting);
 
-	private enum Toggle
+	public enum Toggle
 	{
 		On = 1,
 		Off = 0
+	}
+
+	public enum PortalMode
+	{
+		Public = 0,
+		Private = 1,
+		Group = 2
 	}
 
 	public void Awake()
 	{
 		serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On, "If on, the configuration is locked and can be changed by server admins only.");
 		configSync.AddLockingConfigEntry(serverConfigLocked);
+		allowNonPublicPortals = config("1 - General", "Allow non public portals", Toggle.On, "If on, players can set their portals to private or group (requires Groups).");
+		portalModeToggleModifierKey = config("1 - General", "Modifier key for toggle", new KeyboardShortcut(KeyCode.LeftShift), "Modifier key that has to be pressed while interacting with a portal, to toggle its mode.", false);
 
 		Assembly assembly = Assembly.GetExecutingAssembly();
 		Harmony harmony = new(ModGUID);
@@ -62,6 +78,19 @@ public class TargetPortal : BaseUnityPlugin
 		{
 			knownPortals.Clear();
 			Game.instance.StartCoroutine(FetchPortals());
+			ZRoutedRpc.instance.Register<ZDOID, int, string, string>("TargetPortals ChangePortalMode", OnPortalModeChange);
+		}
+
+		private static void OnPortalModeChange(long sender, ZDOID portalId, int portalMode, string ownerId, string ownerName)
+		{
+			if (!ZDOMan.instance.m_objectsByID.TryGetValue(portalId, out ZDO zdo))
+			{
+				return;
+			}
+
+			zdo.Set("TargetPortal PortalMode", portalMode);
+			zdo.Set("TargetPortal PortalOwnerId", ownerId);
+			zdo.Set("TargetPortal PortalOwnerName", ownerName);
 		}
 	}
 
@@ -124,6 +153,54 @@ public class TargetPortal : BaseUnityPlugin
 			__result = true;
 
 			return false;
+		}
+	}
+
+	[HarmonyPatch(typeof(TeleportWorld), nameof(TeleportWorld.GetHoverText))]
+	private class OverrideHoverText
+	{
+		public static void Postfix(TeleportWorld __instance, ref string __result)
+		{
+			if (portalModeToggleModifierKey.Value.MainKey is KeyCode.None || allowNonPublicPortals.Value == Toggle.Off)
+			{
+				return;
+			}
+
+			PortalMode mode = (PortalMode)__instance.m_nview.GetZDO().GetInt("TargetPortal PortalMode");
+			if (mode == PortalMode.Group && !API.IsLoaded())
+			{
+				mode = PortalMode.Private;
+			}
+
+			__result = __result.Replace(Localization.instance.Localize("$piece_portal_connected"), mode + (mode == PortalMode.Public ? "" : $" (Owner: {__instance.m_nview.GetZDO().GetString("TargetPortal PortalOwnerName")})")) + $"\n[<b><color=yellow>{portalModeToggleModifierKey.Value}</color> + <color=yellow>{Localization.instance.Localize("$KEY_Use")}</color></b>] Toggle Mode";
+		}
+	}
+
+	[HarmonyPatch(typeof(TeleportWorld), nameof(TeleportWorld.Interact))]
+	private class TogglePortalMode
+	{
+		public static bool Prefix(TeleportWorld __instance, bool hold)
+		{
+			if (hold || allowNonPublicPortals.Value == Toggle.Off)
+			{
+				return true;
+			}
+
+			if (Input.GetKey(portalModeToggleModifierKey.Value.MainKey) && portalModeToggleModifierKey.Value.Modifiers.All(Input.GetKey))
+			{
+				int mode = __instance.m_nview.GetZDO().GetInt("TargetPortal PortalMode");
+				++mode;
+				if ((mode == (int)PortalMode.Group && !API.IsLoaded()) || mode > (int)PortalMode.Group)
+				{
+					mode = (int)PortalMode.Public;
+				}
+
+				ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.Everybody, "TargetPortals ChangePortalMode", __instance.m_nview.GetZDO().m_uid, mode, readLocalSteamID(), Player.m_localPlayer.GetHoverName());
+
+				return false;
+			}
+
+			return true;
 		}
 	}
 }
