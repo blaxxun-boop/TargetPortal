@@ -18,7 +18,7 @@ namespace TargetPortal;
 public class TargetPortal : BaseUnityPlugin
 {
 	private const string ModName = "TargetPortal";
-	private const string ModVersion = "1.1.0";
+	private const string ModVersion = "1.1.1";
 	private const string ModGUID = "org.bepinex.plugins.targetportal";
 
 	public static List<ZDO> knownPortals = new();
