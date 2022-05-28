@@ -18,7 +18,7 @@ namespace TargetPortal;
 public class TargetPortal : BaseUnityPlugin
 {
 	private const string ModName = "TargetPortal";
-	private const string ModVersion = "1.1.1";
+	private const string ModVersion = "1.1.2";
 	private const string ModGUID = "org.bepinex.plugins.targetportal";
 
 	public static List<ZDO> knownPortals = new();
@@ -26,7 +26,7 @@ public class TargetPortal : BaseUnityPlugin
 
 	public static string? readLocalSteamID() => Type.GetType("Steamworks.SteamUser, assembly_steamworks")?.GetMethod("GetSteamID")!.Invoke(null, Array.Empty<object>()).ToString();
 
-	private static readonly ConfigSync configSync = new(ModName) { DisplayName = ModName, CurrentVersion = ModVersion, MinimumRequiredVersion = ModVersion };
+	public static readonly ConfigSync configSync = new(ModName) { DisplayName = ModName, CurrentVersion = ModVersion, MinimumRequiredVersion = ModVersion };
 
 	private static ConfigEntry<Toggle> serverConfigLocked = null!;
 	public static ConfigEntry<Toggle> allowNonPublicPortals = null!;
@@ -54,7 +54,8 @@ public class TargetPortal : BaseUnityPlugin
 	{
 		Public = 0,
 		Private = 1,
-		Group = 2
+		Group = 2,
+		Admin = 3
 	}
 
 	public void Awake()
@@ -172,7 +173,7 @@ public class TargetPortal : BaseUnityPlugin
 				mode = PortalMode.Private;
 			}
 
-			__result = __result.Replace(Localization.instance.Localize("$piece_portal_connected"), mode + (mode == PortalMode.Public ? "" : $" (Owner: {__instance.m_nview.GetZDO().GetString("TargetPortal PortalOwnerName")})")) + $"\n[<b><color=yellow>{portalModeToggleModifierKey.Value}</color> + <color=yellow>{Localization.instance.Localize("$KEY_Use")}</color></b>] Toggle Mode";
+			__result = __result.Replace(Localization.instance.Localize("$piece_portal_connected"), mode + (mode is PortalMode.Public or PortalMode.Admin ? "" : $" (Owner: {__instance.m_nview.GetZDO().GetString("TargetPortal PortalOwnerName")})")) + $"\n[<b><color=yellow>{portalModeToggleModifierKey.Value}</color> + <color=yellow>{Localization.instance.Localize("$KEY_Use")}</color></b>] Toggle Mode";
 		}
 	}
 
@@ -190,7 +191,15 @@ public class TargetPortal : BaseUnityPlugin
 			{
 				int mode = __instance.m_nview.GetZDO().GetInt("TargetPortal PortalMode");
 				++mode;
-				if ((mode == (int)PortalMode.Group && !API.IsLoaded()) || mode > (int)PortalMode.Group)
+				if (mode == (int)PortalMode.Group && !API.IsLoaded())
+				{
+					++mode;
+				}
+				if (mode == (int)PortalMode.Admin && !configSync.IsAdmin)
+				{
+					++mode;
+				}
+				if (mode > (int)PortalMode.Admin)
 				{
 					mode = (int)PortalMode.Public;
 				}
