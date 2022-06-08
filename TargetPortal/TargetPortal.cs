@@ -18,7 +18,7 @@ namespace TargetPortal;
 public class TargetPortal : BaseUnityPlugin
 {
 	private const string ModName = "TargetPortal";
-	private const string ModVersion = "1.1.2";
+	private const string ModVersion = "1.1.3";
 	private const string ModGUID = "org.bepinex.plugins.targetportal";
 
 	public static List<ZDO> knownPortals = new();
@@ -98,11 +98,19 @@ public class TargetPortal : BaseUnityPlugin
 	[HarmonyPatch(typeof(ZNetScene), nameof(ZNetScene.Awake))]
 	public class AddMapClosingComponent
 	{
+		[HarmonyPriority(Priority.Last)]
 		private static void Postfix(ZNetScene __instance)
 		{
-			__instance.GetPrefab("portal_wood").transform.Find("TELEPORT").gameObject.AddComponent<CloseMap>();
+			portalPrefabs.Clear();
+			foreach (GameObject portal in __instance.m_prefabs.Where(p => p.GetComponent<TeleportWorld>()))
+			{
+				portal.transform.Find("TELEPORT")?.gameObject.AddComponent<CloseMap>();
+				portalPrefabs.Add(portal.name);
+			}
 		}
 	}
+
+	private static readonly List<string> portalPrefabs = new();
 
 	private static IEnumerator FetchPortals()
 	{
@@ -110,7 +118,7 @@ public class TargetPortal : BaseUnityPlugin
 		{
 			List<ZDO> portalList = new();
 			int index = 0;
-			while (!ZDOMan.instance.GetAllZDOsWithPrefabIterative("portal_wood", portalList, ref index))
+			while (!ZDOMan.instance.GetAllZDOsWithPrefabIterative(portalPrefabs, portalList, ref index))
 			{
 				yield return null;
 			}
