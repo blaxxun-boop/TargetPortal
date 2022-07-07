@@ -120,6 +120,7 @@ public static class Map
 				m_name = (Minimap.PinType)pinType,
 				m_icon = TargetPortal.portalIcon
 			});
+			__instance.m_icons.Last().m_icon.name = "TargetPortalIcon";
 		}
 	}
 
