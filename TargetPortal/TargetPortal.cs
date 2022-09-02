@@ -18,7 +18,7 @@ namespace TargetPortal;
 public class TargetPortal : BaseUnityPlugin
 {
 	private const string ModName = "TargetPortal";
-	private const string ModVersion = "1.1.3";
+	private const string ModVersion = "1.1.4";
 	private const string ModGUID = "org.bepinex.plugins.targetportal";
 
 	public static List<ZDO> knownPortals = new();
@@ -70,6 +70,7 @@ public class TargetPortal : BaseUnityPlugin
 		harmony.PatchAll(assembly);
 
 		portalIcon = Helper.loadSprite("portalicon.png", 64, 64);
+		portalIcon.name = "TargetPortalIcon";
 	}
 
 	[HarmonyPatch(typeof(Game), nameof(Game.Start))]
