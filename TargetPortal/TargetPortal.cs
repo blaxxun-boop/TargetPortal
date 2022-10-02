@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -18,13 +17,11 @@ namespace TargetPortal;
 public class TargetPortal : BaseUnityPlugin
 {
 	private const string ModName = "TargetPortal";
-	private const string ModVersion = "1.1.4";
+	private const string ModVersion = "1.1.5";
 	private const string ModGUID = "org.bepinex.plugins.targetportal";
 
 	public static List<ZDO> knownPortals = new();
 	public static Sprite portalIcon = null!;
-
-	public static string? readLocalSteamID() => Type.GetType("Steamworks.SteamUser, assembly_steamworks")?.GetMethod("GetSteamID")!.Invoke(null, Array.Empty<object>()).ToString();
 
 	public static readonly ConfigSync configSync = new(ModName) { DisplayName = ModName, CurrentVersion = ModVersion, MinimumRequiredVersion = ModVersion };
 
@@ -213,7 +210,7 @@ public class TargetPortal : BaseUnityPlugin
 					mode = (int)PortalMode.Public;
 				}
 
-				ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.Everybody, "TargetPortals ChangePortalMode", __instance.m_nview.GetZDO().m_uid, mode, readLocalSteamID(), Player.m_localPlayer.GetHoverName());
+				ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.Everybody, "TargetPortals ChangePortalMode", __instance.m_nview.GetZDO().m_uid, mode, PrivilegeManager.GetNetworkUserId().Replace("Steam_", ""), Player.m_localPlayer.GetHoverName());
 
 				return false;
 			}
