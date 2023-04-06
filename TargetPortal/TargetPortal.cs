@@ -27,7 +27,8 @@ public class TargetPortal : BaseUnityPlugin
 
 	private static ConfigEntry<Toggle> serverConfigLocked = null!;
 	public static ConfigEntry<Toggle> allowNonPublicPortals = null!;
-	private static ConfigEntry<KeyboardShortcut> portalModeToggleModifierKey = null!;
+    public static ConfigEntry<Toggle> hidePinsDuringPortal = null!;
+    private static ConfigEntry<KeyboardShortcut> portalModeToggleModifierKey = null!;
 
 	private ConfigEntry<T> config<T>(string group, string name, T value, ConfigDescription description, bool synchronizedSetting = true)
 	{
@@ -61,8 +62,9 @@ public class TargetPortal : BaseUnityPlugin
 		configSync.AddLockingConfigEntry(serverConfigLocked);
 		allowNonPublicPortals = config("1 - General", "Allow non public portals", Toggle.On, "If on, players can set their portals to private or group (requires Groups).");
 		portalModeToggleModifierKey = config("1 - General", "Modifier key for toggle", new KeyboardShortcut(KeyCode.LeftShift), "Modifier key that has to be pressed while interacting with a portal, to toggle its mode.", false);
+        hidePinsDuringPortal = config("1 - General", "Hide map pins", Toggle.On, "If on, all map pins will be toggled off when a player enters a portal.");
 
-		Assembly assembly = Assembly.GetExecutingAssembly();
+        Assembly assembly = Assembly.GetExecutingAssembly();
 		Harmony harmony = new(ModGUID);
 		harmony.PatchAll(assembly);
 

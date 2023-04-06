@@ -12,8 +12,9 @@ public static class Map
 {
 	public static bool Teleporting;
 	private static readonly Dictionary<Minimap.PinData, ZDO> activePins = new();
+    private static bool[]? _visibleIconTypes;
 
-	[HarmonyPatch(typeof(TeleportWorldTrigger), nameof(TeleportWorldTrigger.OnTriggerEnter))]
+    [HarmonyPatch(typeof(TeleportWorldTrigger), nameof(TeleportWorldTrigger.OnTriggerEnter))]
 	private class OpenMapOnPortalEnter
 	{
 		private static bool Prefix(TeleportWorldTrigger __instance, Collider collider)
@@ -37,11 +38,31 @@ public static class Map
 				}
 			}
 
-			return false;
+            if (TargetPortal.hidePinsDuringPortal.Value == TargetPortal.Toggle.On && _visibleIconTypes == null)
+            {
+                int l = Minimap.instance.m_visibleIconTypes.Length - 1;
+                _visibleIconTypes = new bool[l];
+                Array.Copy(Minimap.instance.m_visibleIconTypes, _visibleIconTypes, l);
+                ToggleIconFilters(true);
+            }
+
+            return false;
 		}
 	}
 
-	public static void CancelTeleport()
+    private static void ToggleIconFilters(bool force = false)
+    {
+        if (_visibleIconTypes == null) return;
+		for (int i = 0, l = _visibleIconTypes.Length; i < l; i++)
+		{
+			if (_visibleIconTypes[i] && (!Minimap.instance.m_visibleIconTypes[i] || force))
+			{
+				Minimap.instance.ToggleIconFilter((Minimap.PinType)i);
+			}
+		}
+    }
+
+    public static void CancelTeleport()
 	{
 		Teleporting = false;
 
@@ -50,7 +71,13 @@ public static class Map
 			Minimap.instance.RemovePin(pinData);
 		}
 		activePins.Clear();
-	}
+
+		if (TargetPortal.hidePinsDuringPortal.Value == TargetPortal.Toggle.On)
+		{
+			ToggleIconFilters();
+			_visibleIconTypes = null;
+		}
+    }
 
 	private static void HandlePortalClick()
 	{
