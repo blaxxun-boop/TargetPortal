@@ -38,6 +38,11 @@ public static class Map
 				}
 			}
 
+			if(InventoryGui.IsVisible())
+			{
+				InventoryGui.instance.Hide();
+            }
+
             if (TargetPortal.hidePinsDuringPortal.Value == TargetPortal.Toggle.On && _visibleIconTypes == null)
             {
                 int l = Minimap.instance.m_visibleIconTypes.Length - 1;
