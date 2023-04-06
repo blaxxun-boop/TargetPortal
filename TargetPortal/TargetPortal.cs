@@ -13,11 +13,12 @@ using UnityEngine;
 namespace TargetPortal;
 
 [BepInPlugin(ModGUID, ModName, ModVersion)]
+[BepInIncompatibility("org.bepinex.plugins.valheim_plus")]
 [BepInDependency("org.bepinex.plugins.groups", BepInDependency.DependencyFlags.SoftDependency)]
 public class TargetPortal : BaseUnityPlugin
 {
 	private const string ModName = "TargetPortal";
-	private const string ModVersion = "1.1.6";
+	private const string ModVersion = "1.1.7";
 	private const string ModGUID = "org.bepinex.plugins.targetportal";
 
 	public static List<ZDO> knownPortals = new();
@@ -27,6 +28,8 @@ public class TargetPortal : BaseUnityPlugin
 
 	private static ConfigEntry<Toggle> serverConfigLocked = null!;
 	public static ConfigEntry<Toggle> allowNonPublicPortals = null!;
+	public static ConfigEntry<Toggle> hidePinsDuringPortal = null!;
+	private static ConfigEntry<Toggle> portalAnimation = null!;
 	private static ConfigEntry<KeyboardShortcut> portalModeToggleModifierKey = null!;
 
 	private ConfigEntry<T> config<T>(string group, string name, T value, ConfigDescription description, bool synchronizedSetting = true)
@@ -61,6 +64,8 @@ public class TargetPortal : BaseUnityPlugin
 		configSync.AddLockingConfigEntry(serverConfigLocked);
 		allowNonPublicPortals = config("1 - General", "Allow non public portals", Toggle.On, "If on, players can set their portals to private or group (requires Groups).");
 		portalModeToggleModifierKey = config("1 - General", "Modifier key for toggle", new KeyboardShortcut(KeyCode.LeftShift), "Modifier key that has to be pressed while interacting with a portal, to toggle its mode.", false);
+		hidePinsDuringPortal = config("1 - General", "Hide map pins", Toggle.On, "If on, all map pins will be hidden on the map that lets you select a target portal.", false);
+		portalAnimation = config("1 - General", "Portal Animation", Toggle.On, "If on, portals will display their whirling animation while a player is infront of them.", false);
 
 		Assembly assembly = Assembly.GetExecutingAssembly();
 		Harmony harmony = new(ModGUID);
@@ -216,6 +221,26 @@ public class TargetPortal : BaseUnityPlugin
 			}
 
 			return true;
+		}
+	}
+	
+	[HarmonyPatch(typeof(TeleportWorld), nameof(TeleportWorld.HaveTarget))]
+	private static class ControlPortalAnimationHaveTarget
+	{
+		private static bool Prefix(out bool __result)
+		{
+			__result = true;
+			return false;
+		}
+	}
+	
+	[HarmonyPatch(typeof(TeleportWorld), nameof(TeleportWorld.TargetFound))]
+	private static class ControlPortalAnimationTargetFound
+	{
+		private static bool Prefix(out bool __result)
+		{
+			__result = portalAnimation.Value == Toggle.On;
+			return false;
 		}
 	}
 }

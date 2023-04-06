@@ -23,10 +23,10 @@ public static class Helper
 	}
 
 	public static Sprite loadSprite(string name, int width, int height) => Sprite.Create(loadTexture(name), new Rect(0, 0, width, height), Vector2.zero);
-	
+
 	public static bool GetAllZDOsWithPrefabIterative(this ZDOMan zdoman, List<string> prefabs, List<ZDO> zdos, ref int index)
 	{
-		HashSet<int> stableHashCodes = new (prefabs.Select(p => p.GetStableHashCode()));
+		HashSet<int> stableHashCodes = new(prefabs.Select(p => p.GetStableHashCode()));
 		if (index >= zdoman.m_objectsBySector.Length)
 		{
 			zdos.AddRange(zdoman.m_objectsByOutsideSector.Values.SelectMany(v => v).Where(zdo => stableHashCodes.Contains(zdo.m_prefab)));
@@ -48,5 +48,4 @@ public static class Helper
 		}
 		return false;
 	}
-
 }
