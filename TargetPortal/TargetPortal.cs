@@ -18,7 +18,7 @@ namespace TargetPortal;
 public class TargetPortal : BaseUnityPlugin
 {
 	private const string ModName = "TargetPortal";
-	private const string ModVersion = "1.1.7";
+	private const string ModVersion = "1.1.8";
 	private const string ModGUID = "org.bepinex.plugins.targetportal";
 
 	public static List<ZDO> knownPortals = new();
@@ -223,7 +223,7 @@ public class TargetPortal : BaseUnityPlugin
 			return true;
 		}
 	}
-	
+
 	[HarmonyPatch(typeof(TeleportWorld), nameof(TeleportWorld.HaveTarget))]
 	private static class ControlPortalAnimationHaveTarget
 	{
@@ -233,7 +233,7 @@ public class TargetPortal : BaseUnityPlugin
 			return false;
 		}
 	}
-	
+
 	[HarmonyPatch(typeof(TeleportWorld), nameof(TeleportWorld.TargetFound))]
 	private static class ControlPortalAnimationTargetFound
 	{

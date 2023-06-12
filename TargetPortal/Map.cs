@@ -17,9 +17,9 @@ public static class Map
 	[HarmonyPatch(typeof(TeleportWorldTrigger), nameof(TeleportWorldTrigger.OnTriggerEnter))]
 	private class OpenMapOnPortalEnter
 	{
-		private static bool Prefix(TeleportWorldTrigger __instance, Collider collider)
+		private static bool Prefix(TeleportWorldTrigger __instance, Collider colliderIn)
 		{
-			if (collider.GetComponent<Player>() != Player.m_localPlayer)
+			if (colliderIn.GetComponent<Player>() != Player.m_localPlayer)
 			{
 				return false;
 			}
@@ -73,7 +73,7 @@ public static class Map
 			{
 				continue;
 			}
-			
+
 			if (visibleIconTypes[i] && (!Minimap.instance.m_visibleIconTypes[i] || force))
 			{
 				Minimap.instance.ToggleIconFilter((Minimap.PinType)i);
