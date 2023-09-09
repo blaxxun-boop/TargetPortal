@@ -32,7 +32,7 @@ public static class Map
 			{
 				TargetPortal.PortalMode mode = (TargetPortal.PortalMode)zdo.GetInt("TargetPortal PortalMode");
 				string ownerString = zdo.GetString("TargetPortal PortalOwnerId");
-				if (TargetPortal.allowNonPublicPortals.Value == TargetPortal.Toggle.Off || mode == TargetPortal.PortalMode.Public || (mode == TargetPortal.PortalMode.Admin && TargetPortal.configSync.IsAdmin) || ownerString == myId.Replace("Steam_", "") || (mode == TargetPortal.PortalMode.Group && API.GroupPlayers().Contains(PlayerReference.fromPlayerInfo(ZNet.instance.m_players.FirstOrDefault(p => p.m_host == ownerString)))))
+				if (TargetPortal.allowNonPublicPortals.Value == TargetPortal.Toggle.Off || mode == TargetPortal.PortalMode.Public || (mode == TargetPortal.PortalMode.Admin && TargetPortal.configSync.IsAdmin) || ownerString == myId.Replace("Steam_", "") || (mode == TargetPortal.PortalMode.Group && API.GroupPlayers().Contains(PlayerReference.fromPlayerInfo(ZNet.instance.m_players.FirstOrDefault(p => p.m_host == ownerString)))) || (mode == TargetPortal.PortalMode.Guild && Guilds.API.GetOwnGuild() is { } guild && guild.Members.ContainsKey(new Guilds.PlayerReference { id = !ownerString.Contains('_') ? "Steam_" + ownerString : ownerString, name = zdo.GetString("TargetPortal PortalOwnerName") })))
 				{
 					activePins.Add(Minimap.instance.AddPin(zdo.m_position, (Minimap.PinType)AddMinimapPortalIcon.pinType, zdo.GetString("tag"), false, false), zdo);
 				}
@@ -64,7 +64,7 @@ public static class Map
 		HashSet<Sprite> locationSprites = new(Minimap.instance.m_locationIcons.Select(l => l.m_icon));
 		HashSet<int> locationPins = new(Minimap.instance.m_pins.Where(p => locationSprites.Contains(p.m_icon)).Select(p => (int)p.m_type))
 		{
-			AddMinimapPortalIcon.pinType
+			AddMinimapPortalIcon.pinType,
 		};
 
 		for (int i = 0; i < visibleIconTypes.Length; ++i)
@@ -164,7 +164,7 @@ public static class Map
 			__instance.m_icons.Add(new Minimap.SpriteData
 			{
 				m_name = (Minimap.PinType)pinType,
-				m_icon = TargetPortal.portalIcon
+				m_icon = TargetPortal.portalIcon,
 			});
 		}
 	}
@@ -190,7 +190,7 @@ public static class Map
 		{
 			AccessTools.DeclaredMethod(typeof(Minimap), nameof(Minimap.OnMapDblClick)),
 			AccessTools.DeclaredMethod(typeof(Minimap), nameof(Minimap.OnMapRightClick)),
-			AccessTools.DeclaredMethod(typeof(Minimap), nameof(Minimap.OnMapMiddleClick))
+			AccessTools.DeclaredMethod(typeof(Minimap), nameof(Minimap.OnMapMiddleClick)),
 		};
 
 		private static bool Prefix()

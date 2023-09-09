@@ -72,6 +72,9 @@
         <Reference Include="Groups, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
             <HintPath>$(GamePath)\BepInEx\plugins\Groups.dll</HintPath>
         </Reference>
+        <Reference Include="Guilds">
+            <HintPath>$(GamePath)\BepInEx\plugins\Guilds.dll</HintPath>
+        </Reference>
         <Reference Include="ServerSync, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
             <HintPath>ServerSync.dll</HintPath>
         </Reference>
@@ -105,6 +108,9 @@
     </ItemGroup>
     <ItemGroup>
         <Content Include="GroupsAPI.dll">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="GuildsAPI.dll">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
         <Content Include="ILRepack.targets"/>

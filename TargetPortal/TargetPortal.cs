@@ -15,10 +15,11 @@ namespace TargetPortal;
 [BepInPlugin(ModGUID, ModName, ModVersion)]
 [BepInIncompatibility("org.bepinex.plugins.valheim_plus")]
 [BepInDependency("org.bepinex.plugins.groups", BepInDependency.DependencyFlags.SoftDependency)]
+[BepInDependency("org.bepinex.plugins.guilds", BepInDependency.DependencyFlags.SoftDependency)]
 public class TargetPortal : BaseUnityPlugin
 {
 	private const string ModName = "TargetPortal";
-	private const string ModVersion = "1.1.8";
+	private const string ModVersion = "1.1.9";
 	private const string ModGUID = "org.bepinex.plugins.targetportal";
 
 	public static List<ZDO> knownPortals = new();
@@ -47,7 +48,7 @@ public class TargetPortal : BaseUnityPlugin
 	public enum Toggle
 	{
 		On = 1,
-		Off = 0
+		Off = 0,
 	}
 
 	public enum PortalMode
@@ -55,14 +56,15 @@ public class TargetPortal : BaseUnityPlugin
 		Public = 0,
 		Private = 1,
 		Group = 2,
-		Admin = 3
+		Admin = 3,
+		Guild = 4,
 	}
 
 	public void Awake()
 	{
 		serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On, "If on, the configuration is locked and can be changed by server admins only.");
 		configSync.AddLockingConfigEntry(serverConfigLocked);
-		allowNonPublicPortals = config("1 - General", "Allow non public portals", Toggle.On, "If on, players can set their portals to private or group (requires Groups).");
+		allowNonPublicPortals = config("1 - General", "Allow non public portals", Toggle.On, "If on, players can set their portals to private, group (requires Groups) or guild (requires Guilds).");
 		portalModeToggleModifierKey = config("1 - General", "Modifier key for toggle", new KeyboardShortcut(KeyCode.LeftShift), "Modifier key that has to be pressed while interacting with a portal, to toggle its mode.", false);
 		hidePinsDuringPortal = config("1 - General", "Hide map pins", Toggle.On, "If on, all map pins will be hidden on the map that lets you select a target portal.", false);
 		portalAnimation = config("1 - General", "Portal Animation", Toggle.On, "If on, portals will display their whirling animation while a player is infront of them.", false);
@@ -179,7 +181,7 @@ public class TargetPortal : BaseUnityPlugin
 			}
 
 			PortalMode mode = (PortalMode)__instance.m_nview.GetZDO().GetInt("TargetPortal PortalMode");
-			if (mode == PortalMode.Group && !API.IsLoaded())
+			if ((mode == PortalMode.Group && !API.IsLoaded()) || (mode == PortalMode.Guild && !Guilds.API.IsLoaded()))
 			{
 				mode = PortalMode.Private;
 			}
@@ -210,7 +212,11 @@ public class TargetPortal : BaseUnityPlugin
 				{
 					++mode;
 				}
-				if (mode > (int)PortalMode.Admin)
+				if (mode == (int)PortalMode.Guild && !Guilds.API.IsLoaded())
+				{
+					++mode;
+				}
+				if (mode > (int)PortalMode.Guild)
 				{
 					mode = (int)PortalMode.Public;
 				}
