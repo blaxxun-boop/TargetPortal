@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -19,7 +20,7 @@ namespace TargetPortal;
 public class TargetPortal : BaseUnityPlugin
 {
 	private const string ModName = "TargetPortal";
-	private const string ModVersion = "1.1.9";
+	private const string ModVersion = "1.1.10";
 	private const string ModGUID = "org.bepinex.plugins.targetportal";
 
 	public static List<ZDO> knownPortals = new();
@@ -60,6 +61,12 @@ public class TargetPortal : BaseUnityPlugin
 		Guild = 4,
 	}
 
+	static TargetPortal()
+	{
+		Assembly.GetExecutingAssembly().GetType("Groups.Initializer").GetMethod("Init")!.Invoke(null, Array.Empty<object>());
+		Assembly.GetExecutingAssembly().GetType("Guilds.Initializer").GetMethod("Init")!.Invoke(null, Array.Empty<object>());
+	}
+	
 	public void Awake()
 	{
 		serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On, "If on, the configuration is locked and can be changed by server admins only.");
