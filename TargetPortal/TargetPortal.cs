@@ -20,7 +20,7 @@ namespace TargetPortal;
 public class TargetPortal : BaseUnityPlugin
 {
 	private const string ModName = "TargetPortal";
-	private const string ModVersion = "1.1.10";
+	private const string ModVersion = "1.1.11";
 	private const string ModGUID = "org.bepinex.plugins.targetportal";
 
 	public static List<ZDO> knownPortals = new();
@@ -30,6 +30,7 @@ public class TargetPortal : BaseUnityPlugin
 
 	private static ConfigEntry<Toggle> serverConfigLocked = null!;
 	public static ConfigEntry<Toggle> allowNonPublicPortals = null!;
+	private static ConfigEntry<Toggle> limitToVanillaPortals = null!;
 	public static ConfigEntry<Toggle> hidePinsDuringPortal = null!;
 	private static ConfigEntry<Toggle> portalAnimation = null!;
 	private static ConfigEntry<KeyboardShortcut> portalModeToggleModifierKey = null!;
@@ -72,6 +73,7 @@ public class TargetPortal : BaseUnityPlugin
 		serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On, "If on, the configuration is locked and can be changed by server admins only.");
 		configSync.AddLockingConfigEntry(serverConfigLocked);
 		allowNonPublicPortals = config("1 - General", "Allow non public portals", Toggle.On, "If on, players can set their portals to private, group (requires Groups) or guild (requires Guilds).");
+		limitToVanillaPortals = config("1 - General", "Limit to vanilla portals", Toggle.Off, "If on, the mod ignores non-vanilla portals.");
 		portalModeToggleModifierKey = config("1 - General", "Modifier key for toggle", new KeyboardShortcut(KeyCode.LeftShift), "Modifier key that has to be pressed while interacting with a portal, to toggle its mode.", false);
 		hidePinsDuringPortal = config("1 - General", "Hide map pins", Toggle.On, "If on, all map pins will be hidden on the map that lets you select a target portal.", false);
 		portalAnimation = config("1 - General", "Portal Animation", Toggle.On, "If on, portals will display their whirling animation while a player is infront of them.", false);
@@ -130,7 +132,7 @@ public class TargetPortal : BaseUnityPlugin
 		{
 			List<ZDO> portalList = new();
 			int index = 0;
-			while (!ZDOMan.instance.GetAllZDOsWithPrefabIterative(portalPrefabs, portalList, ref index))
+			while (!ZDOMan.instance.GetAllZDOsWithPrefabIterative(limitToVanillaPortals.Value == Toggle.On ? new List<string> { "portal_wood" } : portalPrefabs, portalList, ref index))
 			{
 				yield return null;
 			}
