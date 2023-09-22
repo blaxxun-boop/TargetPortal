@@ -24,6 +24,11 @@ public static class Map
 				return false;
 			}
 
+			if (TargetPortal.limitToVanillaPortals.Value == TargetPortal.Toggle.On && Utils.GetPrefabName(__instance.transform.parent.gameObject) != "portal_wood")
+			{
+				return true;
+			}
+
 			Teleporting = true;
 			Minimap.instance.ShowPointOnMap(__instance.transform.position);
 

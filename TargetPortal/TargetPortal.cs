@@ -20,7 +20,7 @@ namespace TargetPortal;
 public class TargetPortal : BaseUnityPlugin
 {
 	private const string ModName = "TargetPortal";
-	private const string ModVersion = "1.1.11";
+	private const string ModVersion = "1.1.12";
 	private const string ModGUID = "org.bepinex.plugins.targetportal";
 
 	public static List<ZDO> knownPortals = new();
@@ -30,7 +30,7 @@ public class TargetPortal : BaseUnityPlugin
 
 	private static ConfigEntry<Toggle> serverConfigLocked = null!;
 	public static ConfigEntry<Toggle> allowNonPublicPortals = null!;
-	private static ConfigEntry<Toggle> limitToVanillaPortals = null!;
+	public static ConfigEntry<Toggle> limitToVanillaPortals = null!;
 	public static ConfigEntry<Toggle> hidePinsDuringPortal = null!;
 	private static ConfigEntry<Toggle> portalAnimation = null!;
 	private static ConfigEntry<KeyboardShortcut> portalModeToggleModifierKey = null!;
@@ -184,7 +184,7 @@ public class TargetPortal : BaseUnityPlugin
 	{
 		public static void Postfix(TeleportWorld __instance, ref string __result)
 		{
-			if (portalModeToggleModifierKey.Value.MainKey is KeyCode.None || allowNonPublicPortals.Value == Toggle.Off)
+			if (portalModeToggleModifierKey.Value.MainKey is KeyCode.None || allowNonPublicPortals.Value == Toggle.Off || (limitToVanillaPortals.Value == Toggle.On && Utils.GetPrefabName(__instance.gameObject) != "portal_wood"))
 			{
 				return;
 			}
@@ -204,7 +204,7 @@ public class TargetPortal : BaseUnityPlugin
 	{
 		public static bool Prefix(TeleportWorld __instance, bool hold)
 		{
-			if (hold || allowNonPublicPortals.Value == Toggle.Off)
+			if (hold || allowNonPublicPortals.Value == Toggle.Off || (limitToVanillaPortals.Value == Toggle.On && Utils.GetPrefabName(__instance.gameObject) != "portal_wood"))
 			{
 				return true;
 			}
