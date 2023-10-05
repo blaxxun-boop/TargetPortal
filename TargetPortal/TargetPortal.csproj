@@ -69,11 +69,11 @@
             <HintPath>$(GamePath)\BepInEx\core\BepInEx.dll</HintPath>
             <SpecificVersion>false</SpecificVersion>
         </Reference>
-        <Reference Include="Groups, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
-            <HintPath>$(GamePath)\BepInEx\plugins\Groups.dll</HintPath>
+        <Reference Include="Groups">
+          <HintPath>GroupsAPI.dll</HintPath>
         </Reference>
         <Reference Include="Guilds">
-            <HintPath>$(GamePath)\BepInEx\plugins\Guilds.dll</HintPath>
+          <HintPath>GuildsAPI.dll</HintPath>
         </Reference>
         <Reference Include="ServerSync, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
             <HintPath>ServerSync.dll</HintPath>
