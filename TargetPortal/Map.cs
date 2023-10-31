@@ -196,7 +196,7 @@ public static class Map
 	{
 		private static void Prefix()
 		{
-			if (TargetPortal.mapPortalIconKey.Value.IsDown())
+			if (Minimap.instance.m_mode == Minimap.MapMode.Large && TargetPortal.mapPortalIconKey.Value.IsDown())
 			{
 				if (activePins.Count == 0)
 				{
