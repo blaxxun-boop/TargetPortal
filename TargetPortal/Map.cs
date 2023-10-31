@@ -32,16 +32,7 @@ public static class Map
 			Teleporting = true;
 			Minimap.instance.ShowPointOnMap(__instance.transform.position);
 
-			string? myId = PrivilegeManager.GetNetworkUserId();
-			foreach (ZDO zdo in TargetPortal.knownPortals)
-			{
-				TargetPortal.PortalMode mode = (TargetPortal.PortalMode)zdo.GetInt("TargetPortal PortalMode");
-				string ownerString = zdo.GetString("TargetPortal PortalOwnerId");
-				if (TargetPortal.allowNonPublicPortals.Value == TargetPortal.Toggle.Off || mode == TargetPortal.PortalMode.Public || (mode == TargetPortal.PortalMode.Admin && TargetPortal.configSync.IsAdmin) || ownerString == myId.Replace("Steam_", "") || (mode == TargetPortal.PortalMode.Group && API.GroupPlayers().Contains(PlayerReference.fromPlayerInfo(ZNet.instance.m_players.FirstOrDefault(p => p.m_host == ownerString)))) || (mode == TargetPortal.PortalMode.Guild && Guilds.API.GetOwnGuild() is { } guild && guild.Members.ContainsKey(new Guilds.PlayerReference { id = !ownerString.Contains('_') ? "Steam_" + ownerString : ownerString, name = zdo.GetString("TargetPortal PortalOwnerName") })))
-				{
-					activePins.Add(Minimap.instance.AddPin(zdo.m_position, (Minimap.PinType)AddMinimapPortalIcon.pinType, zdo.GetString("tag"), false, false), zdo);
-				}
-			}
+			AddPortalPins();
 
 			if (InventoryGui.IsVisible())
 			{
@@ -90,11 +81,7 @@ public static class Map
 	{
 		Teleporting = false;
 
-		foreach (Minimap.PinData pinData in activePins.Keys)
-		{
-			Minimap.instance.RemovePin(pinData);
-		}
-		activePins.Clear();
+		RemovePortalPins();
 
 		if (TargetPortal.hidePinsDuringPortal.Value == TargetPortal.Toggle.On)
 		{
@@ -202,5 +189,47 @@ public static class Map
 		{
 			return !Teleporting;
 		}
+	}
+
+	[HarmonyPatch(typeof(Minimap), nameof(Minimap.Update))]
+	private static class ShowPortalIcons
+	{
+		private static void Prefix()
+		{
+			if (TargetPortal.mapPortalIconKey.Value.IsDown())
+			{
+				if (activePins.Count == 0)
+				{
+					AddPortalPins();
+				}
+				else
+				{
+					RemovePortalPins();
+				}
+			}
+		}
+	}
+
+	private static void AddPortalPins()
+	{
+		string? myId = PrivilegeManager.GetNetworkUserId();
+		foreach (ZDO zdo in TargetPortal.knownPortals)
+		{
+			TargetPortal.PortalMode mode = (TargetPortal.PortalMode)zdo.GetInt("TargetPortal PortalMode");
+			string ownerString = zdo.GetString("TargetPortal PortalOwnerId");
+			if (TargetPortal.allowNonPublicPortals.Value == TargetPortal.Toggle.Off || mode == TargetPortal.PortalMode.Public || (mode == TargetPortal.PortalMode.Admin && TargetPortal.configSync.IsAdmin) || ownerString == myId.Replace("Steam_", "") || (mode == TargetPortal.PortalMode.Group && API.GroupPlayers().Contains(PlayerReference.fromPlayerInfo(ZNet.instance.m_players.FirstOrDefault(p => p.m_host == ownerString)))) || (mode == TargetPortal.PortalMode.Guild && Guilds.API.GetOwnGuild() is { } guild && guild.Members.ContainsKey(new Guilds.PlayerReference { id = !ownerString.Contains('_') ? "Steam_" + ownerString : ownerString, name = zdo.GetString("TargetPortal PortalOwnerName") })))
+			{
+				activePins.Add(Minimap.instance.AddPin(zdo.m_position, (Minimap.PinType)AddMinimapPortalIcon.pinType, zdo.GetString("tag"), false, false), zdo);
+			}
+		}
+	}
+
+	private static void RemovePortalPins()
+	{
+		foreach (Minimap.PinData pinData in activePins.Keys)
+		{
+			Minimap.instance.RemovePin(pinData);
+		}
+		activePins.Clear();
 	}
 }

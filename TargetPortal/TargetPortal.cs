@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Reflection.Emit;
 using BepInEx;
 using BepInEx.Configuration;
 using Groups;
@@ -19,7 +20,7 @@ namespace TargetPortal;
 public class TargetPortal : BaseUnityPlugin
 {
 	private const string ModName = "TargetPortal";
-	private const string ModVersion = "1.1.13";
+	private const string ModVersion = "1.1.14";
 	private const string ModGUID = "org.bepinex.plugins.targetportal";
 
 	public static List<ZDO> knownPortals = new();
@@ -33,6 +34,7 @@ public class TargetPortal : BaseUnityPlugin
 	public static ConfigEntry<Toggle> hidePinsDuringPortal = null!;
 	private static ConfigEntry<Toggle> portalAnimation = null!;
 	private static ConfigEntry<KeyboardShortcut> portalModeToggleModifierKey = null!;
+	public static ConfigEntry<KeyboardShortcut> mapPortalIconKey = null!;
 
 	private ConfigEntry<T> config<T>(string group, string name, T value, ConfigDescription description, bool synchronizedSetting = true)
 	{
@@ -70,6 +72,7 @@ public class TargetPortal : BaseUnityPlugin
 		portalModeToggleModifierKey = config("1 - General", "Modifier key for toggle", new KeyboardShortcut(KeyCode.LeftShift), "Modifier key that has to be pressed while interacting with a portal, to toggle its mode.", false);
 		hidePinsDuringPortal = config("1 - General", "Hide map pins", Toggle.On, "If on, all map pins will be hidden on the map that lets you select a target portal.", false);
 		portalAnimation = config("1 - General", "Portal Animation", Toggle.On, "If on, portals will display their whirling animation while a player is infront of them.", false);
+		mapPortalIconKey = config("1 - General", "Hotkey map icons", new KeyboardShortcut(KeyCode.P), "Hotkey to press while the map is open to toggle portal icons.", false);
 
 		Assembly assembly = Assembly.GetExecutingAssembly();
 		Harmony harmony = new(ModGUID);
@@ -108,26 +111,23 @@ public class TargetPortal : BaseUnityPlugin
 		[HarmonyPriority(Priority.Last)]
 		private static void Postfix(ZNetScene __instance)
 		{
-			portalPrefabs.Clear();
 			foreach (GameObject portal in __instance.m_prefabs.Where(p => p.GetComponent<TeleportWorld>()))
 			{
 				portal.transform.Find("TELEPORT")?.gameObject.AddComponent<CloseMap>();
-				portalPrefabs.Add(portal.name);
 			}
 		}
 	}
-
-	private static readonly List<string> portalPrefabs = new();
+	
+	private static readonly int vanillaPortalPrefab = "portal_wood".GetStableHashCode();
 
 	private static IEnumerator FetchPortals()
 	{
 		while (true)
 		{
-			List<ZDO> portalList = new();
-			int index = 0;
-			while (!ZDOMan.instance.GetAllZDOsWithPrefabIterative(limitToVanillaPortals.Value == Toggle.On ? new List<string> { "portal_wood" } : portalPrefabs, portalList, ref index))
+			List<ZDO> portalList = ZDOMan.instance.GetPortals();
+			if (limitToVanillaPortals.Value == Toggle.On)
 			{
-				yield return null;
+				portalList = portalList.Where(z => z.m_prefab == vanillaPortalPrefab).ToList();
 			}
 
 			if (ZNet.instance.IsServer())
@@ -143,6 +143,34 @@ public class TargetPortal : BaseUnityPlugin
 			yield return new WaitForSeconds(5f);
 		}
 		// ReSharper disable once IteratorNeverReturns
+	}
+
+	[HarmonyPatch(typeof(Game), nameof(Game.ConnectPortals))]
+	private static class SkipPortalConnecting
+	{
+		private static readonly MethodInfo PortalGetter = AccessTools.DeclaredMethod(typeof(ZDOMan), nameof(ZDOMan.GetPortals));
+
+		private static List<ZDO> FilterPortals(List<ZDO> portals)
+		{
+			List<ZDO> filtered = new();
+			if (limitToVanillaPortals.Value == Toggle.On)
+			{
+				filtered.AddRange(portals.Where(z => z.m_prefab != vanillaPortalPrefab));
+			}
+			return filtered;
+		}
+		
+		private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+		{
+			foreach (CodeInstruction instruction in instructions)
+			{
+				yield return instruction;
+				if (instruction.Calls(PortalGetter))
+				{
+					yield return new CodeInstruction(OpCodes.Call, AccessTools.DeclaredMethod(typeof(SkipPortalConnecting), nameof(FilterPortals)));
+				}
+			}
+		}
 	}
 
 	[HarmonyPatch(typeof(ZDOMan), nameof(ZDOMan.AddPeer))]

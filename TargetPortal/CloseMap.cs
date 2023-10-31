@@ -8,6 +8,7 @@ public class CloseMap : MonoBehaviour
 	{
 		if (Map.Teleporting && other.GetComponent<Player>() == Player.m_localPlayer)
 		{
+			Minimap.instance.m_dragView = false;
 			Minimap.instance.SetMapMode(Minimap.MapMode.Small);
 			Map.CancelTeleport();
 		}
