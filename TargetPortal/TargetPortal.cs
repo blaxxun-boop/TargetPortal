@@ -20,7 +20,7 @@ namespace TargetPortal;
 public class TargetPortal : BaseUnityPlugin
 {
 	private const string ModName = "TargetPortal";
-	private const string ModVersion = "1.1.15";
+	private const string ModVersion = "1.1.16";
 	private const string ModGUID = "org.bepinex.plugins.targetportal";
 
 	public static List<ZDO> knownPortals = new();
@@ -125,10 +125,7 @@ public class TargetPortal : BaseUnityPlugin
 		while (true)
 		{
 			List<ZDO> portalList = ZDOMan.instance.GetPortals();
-			if (limitToVanillaPortals.Value == Toggle.On)
-			{
-				portalList = portalList.Where(z => z.m_prefab == vanillaPortalPrefab).ToList();
-			}
+			portalList = limitToVanillaPortals.Value == Toggle.On ? portalList.Where(z => z.m_prefab == vanillaPortalPrefab).ToList() : new List<ZDO>(portalList);
 
 			if (ZNet.instance.IsServer())
 			{
