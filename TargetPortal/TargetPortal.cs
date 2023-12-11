@@ -25,6 +25,7 @@ public class TargetPortal : BaseUnityPlugin
 
 	public static List<ZDO> knownPortals = new();
 	public static Sprite portalIcon = null!;
+	public static bool isGameNoMap;
 
 	public static readonly ConfigSync configSync = new(ModName) { DisplayName = ModName, CurrentVersion = ModVersion, MinimumRequiredVersion = ModVersion };
 
@@ -82,6 +83,16 @@ public class TargetPortal : BaseUnityPlugin
 		portalIcon.name = "TargetPortalIcon";
 	}
 
+	[HarmonyPatch(typeof(Player), nameof(Player.Awake))]
+	public class PlayerAwakePatch
+	{
+		private static void Postfix(Player __instance)
+		{
+			// save the game nomap mode for later.
+			isGameNoMap = Game.m_noMap;
+		}
+	}
+		
 	[HarmonyPatch(typeof(Game), nameof(Game.Start))]
 	public class StartPortalFetching
 	{
