@@ -29,14 +29,13 @@ public static class Map
 				return true;
 			}
 
-			if (TargetPortal.isGameNoMap)
-				Game.m_noMap = false;
+			bool origNoMap = Game.m_noMap;
+			Game.m_noMap = false;
 			
 			Teleporting = true;
 			Minimap.instance.ShowPointOnMap(__instance.transform.position);
 
-			if (TargetPortal.isGameNoMap)
-				Game.m_noMap = true;
+			Game.m_noMap = origNoMap;
 
 			AddPortalPins();
 
