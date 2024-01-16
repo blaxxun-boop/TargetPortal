@@ -257,6 +257,22 @@ public class TargetPortal : BaseUnityPlugin
 		}
 	}
 
+	[HarmonyPatch(typeof(TeleportWorld), nameof(TeleportWorld.Interact))]
+	private class EditPortalTagCharacterLimit
+	{
+		[HarmonyTranspiler]
+		static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+		{
+			return new CodeMatcher(instructions)
+					.MatchForward(false,
+							new CodeMatch(OpCodes.Ldc_I4_S),
+							new CodeMatch(OpCodes.Callvirt, AccessTools.Method(typeof(TextInput), nameof(TextInput.RequestText))))
+					.ThrowIfInvalid("Could not edit TeleportWorld.Interact() portal tag character limit")
+					.SetOperandAndAdvance(1000)
+					.InstructionEnumeration();
+		}
+	}
+
 	[HarmonyPatch(typeof(TeleportWorld), nameof(TeleportWorld.HaveTarget))]
 	private static class ControlPortalAnimationHaveTarget
 	{
