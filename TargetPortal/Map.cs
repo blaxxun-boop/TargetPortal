@@ -104,7 +104,9 @@ public static class Map
 		}
 
 		Minimap Minimap = Minimap.instance;
-		Minimap.PinData? closestPin = Minimap.GetClosestPin(Minimap.ScreenToWorldPoint(Input.mousePosition), Minimap.m_removeRadius * (Minimap.m_largeZoom * 2f));
+		Vector3 ScreenToWorldPoint = Minimap.ScreenToWorldPoint(Input.mousePosition);
+
+        Minimap.PinData? closestPin = Minimap.GetClosestPin(ScreenToWorldPoint, Minimap.m_removeRadius * (Minimap.m_largeZoom * 2f));
 
 		foreach (Minimap.PinData pinData in activePins.Keys)
 		{
