@@ -13,7 +13,7 @@ public static class Map
 	public static bool Teleporting;
 	private static readonly Dictionary<Minimap.PinData, ZDO> activePins = new();
 	private static bool[]? visibleIconTypes;
-
+	
 	[HarmonyPatch(typeof(TeleportWorldTrigger), nameof(TeleportWorldTrigger.OnTriggerEnter))]
 	private class OpenMapOnPortalEnter
 	{
@@ -29,8 +29,13 @@ public static class Map
 				return true;
 			}
 
+			bool origNoMap = Game.m_noMap;
+			Game.m_noMap = false;
+			
 			Teleporting = true;
 			Minimap.instance.ShowPointOnMap(__instance.transform.position);
+
+			Game.m_noMap = origNoMap;
 
 			AddPortalPins();
 

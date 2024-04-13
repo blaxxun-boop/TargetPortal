@@ -81,7 +81,7 @@ public class TargetPortal : BaseUnityPlugin
 		portalIcon = Helper.loadSprite("portalicon.png", 64, 64);
 		portalIcon.name = "TargetPortalIcon";
 	}
-
+	
 	[HarmonyPatch(typeof(Game), nameof(Game.Start))]
 	public class StartPortalFetching
 	{
