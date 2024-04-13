@@ -20,7 +20,7 @@ namespace TargetPortal;
 public class TargetPortal : BaseUnityPlugin
 {
 	private const string ModName = "TargetPortal";
-	private const string ModVersion = "1.1.16";
+	private const string ModVersion = "1.1.17";
 	private const string ModGUID = "org.bepinex.plugins.targetportal";
 
 	public static List<ZDO> knownPortals = new();
@@ -33,6 +33,7 @@ public class TargetPortal : BaseUnityPlugin
 	public static ConfigEntry<Toggle> limitToVanillaPortals = null!;
 	public static ConfigEntry<Toggle> hidePinsDuringPortal = null!;
 	private static ConfigEntry<Toggle> portalAnimation = null!;
+	private static ConfigEntry<int> portalNameLength = null!;
 	private static ConfigEntry<KeyboardShortcut> portalModeToggleModifierKey = null!;
 	public static ConfigEntry<KeyboardShortcut> mapPortalIconKey = null!;
 
@@ -62,7 +63,7 @@ public class TargetPortal : BaseUnityPlugin
 		Admin = 3,
 		Guild = 4,
 	}
-	
+
 	public void Awake()
 	{
 		serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On, "If on, the configuration is locked and can be changed by server admins only.");
@@ -73,6 +74,7 @@ public class TargetPortal : BaseUnityPlugin
 		hidePinsDuringPortal = config("1 - General", "Hide map pins", Toggle.On, "If on, all map pins will be hidden on the map that lets you select a target portal.", false);
 		portalAnimation = config("1 - General", "Portal Animation", Toggle.On, "If on, portals will display their whirling animation while a player is infront of them.", false);
 		mapPortalIconKey = config("1 - General", "Hotkey map icons", new KeyboardShortcut(KeyCode.P), "Hotkey to press while the map is open to toggle portal icons.", false);
+		portalNameLength = config("1 - General", "Maximum length for portal names", 10, new ConfigDescription("Maximum length for portal names.", new AcceptableValueRange<int>(5, 100)));
 
 		Assembly assembly = Assembly.GetExecutingAssembly();
 		Harmony harmony = new(ModGUID);
@@ -81,7 +83,7 @@ public class TargetPortal : BaseUnityPlugin
 		portalIcon = Helper.loadSprite("portalicon.png", 64, 64);
 		portalIcon.name = "TargetPortalIcon";
 	}
-	
+
 	[HarmonyPatch(typeof(Game), nameof(Game.Start))]
 	public class StartPortalFetching
 	{
@@ -117,7 +119,7 @@ public class TargetPortal : BaseUnityPlugin
 			}
 		}
 	}
-	
+
 	private static readonly int vanillaPortalPrefab = "portal_wood".GetStableHashCode();
 
 	private static IEnumerator FetchPortals()
@@ -156,7 +158,7 @@ public class TargetPortal : BaseUnityPlugin
 			}
 			return filtered;
 		}
-		
+
 		private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
 		{
 			foreach (CodeInstruction instruction in instructions)
@@ -260,16 +262,22 @@ public class TargetPortal : BaseUnityPlugin
 	[HarmonyPatch(typeof(TeleportWorld), nameof(TeleportWorld.Interact))]
 	private class EditPortalTagCharacterLimit
 	{
-		[HarmonyTranspiler]
-		static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+		private static int CharacterLimit() => portalNameLength.Value;
+
+		private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructionList)
 		{
-			return new CodeMatcher(instructions)
-					.MatchForward(false,
-							new CodeMatch(OpCodes.Ldc_I4_S),
-							new CodeMatch(OpCodes.Callvirt, AccessTools.Method(typeof(TextInput), nameof(TextInput.RequestText))))
-					.ThrowIfInvalid("Could not edit TeleportWorld.Interact() portal tag character limit")
-					.SetOperandAndAdvance(1000)
-					.InstructionEnumeration();
+			List<CodeInstruction> instructions = instructionList.ToList();
+			for (int i = 0; i < instructions.Count; ++i)
+			{
+				if (instructions[i].opcode == OpCodes.Ldc_I4_S && instructions[i + 1].Calls(AccessTools.Method(typeof(TextInput), nameof(TextInput.RequestText))))
+				{
+					yield return new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(EditPortalTagCharacterLimit), nameof(CharacterLimit)));
+				}
+				else
+				{
+					yield return instructions[i];
+				}
+			}
 		}
 	}
 
