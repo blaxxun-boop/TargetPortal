@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -20,10 +21,10 @@ namespace TargetPortal;
 public class TargetPortal : BaseUnityPlugin
 {
 	private const string ModName = "TargetPortal";
-	private const string ModVersion = "1.1.17";
+	private const string ModVersion = "1.1.18";
 	private const string ModGUID = "org.bepinex.plugins.targetportal";
 
-	public static List<ZDO> knownPortals = new();
+	public static HashSet<ZDO> knownPortals = new();
 	public static Sprite portalIcon = null!;
 
 	public static readonly ConfigSync configSync = new(ModName) { DisplayName = ModName, CurrentVersion = ModVersion, MinimumRequiredVersion = ModVersion };
@@ -34,6 +35,7 @@ public class TargetPortal : BaseUnityPlugin
 	public static ConfigEntry<Toggle> hidePinsDuringPortal = null!;
 	private static ConfigEntry<Toggle> portalAnimation = null!;
 	private static ConfigEntry<int> portalNameLength = null!;
+	private static ConfigEntry<int> maximumNumberOfPortals = null!;
 	private static ConfigEntry<KeyboardShortcut> portalModeToggleModifierKey = null!;
 	public static ConfigEntry<KeyboardShortcut> mapPortalIconKey = null!;
 
@@ -75,6 +77,7 @@ public class TargetPortal : BaseUnityPlugin
 		portalAnimation = config("1 - General", "Portal Animation", Toggle.On, "If on, portals will display their whirling animation while a player is infront of them.", false);
 		mapPortalIconKey = config("1 - General", "Hotkey map icons", new KeyboardShortcut(KeyCode.P), "Hotkey to press while the map is open to toggle portal icons.", false);
 		portalNameLength = config("1 - General", "Maximum length for portal names", 10, new ConfigDescription("Maximum length for portal names.", new AcceptableValueRange<int>(5, 100)));
+		maximumNumberOfPortals = config("1 - General", "Maximum number of portals", 0, new ConfigDescription("Sets the maximum number of portals allowed in the world. Use 0 for no limit."));
 
 		Assembly assembly = Assembly.GetExecutingAssembly();
 		Harmony harmony = new(ModGUID);
@@ -127,17 +130,17 @@ public class TargetPortal : BaseUnityPlugin
 		while (true)
 		{
 			List<ZDO> portalList = ZDOMan.instance.GetPortals();
-			portalList = limitToVanillaPortals.Value == Toggle.On ? portalList.Where(z => z.m_prefab == vanillaPortalPrefab).ToList() : new List<ZDO>(portalList);
+			HashSet<ZDO> foundPortals = limitToVanillaPortals.Value == Toggle.On ? new HashSet<ZDO>(portalList.Where(z => z.m_prefab == vanillaPortalPrefab)) : new HashSet<ZDO>(portalList);
 
 			if (ZNet.instance.IsServer())
 			{
-				foreach (ZDO zdo in portalList.Except(knownPortals))
+				foreach (ZDO zdo in foundPortals.Except(knownPortals))
 				{
 					ZDOMan.instance.ForceSendZDO(zdo.m_uid);
 				}
 			}
 
-			knownPortals = portalList;
+			knownPortals = foundPortals;
 
 			yield return new WaitForSeconds(5f);
 		}
@@ -298,6 +301,38 @@ public class TargetPortal : BaseUnityPlugin
 		{
 			__result = portalAnimation.Value == Toggle.On;
 			return false;
+		}
+	}
+
+	[HarmonyPatch(typeof(Player), nameof(Player.PlacePiece))]
+	private static class PreventBuildingOverLimit
+	{
+		private static bool Prefix(Player __instance)
+		{
+			if (maximumNumberOfPortals.Value > 0 && knownPortals.Count >= maximumNumberOfPortals.Value)
+			{
+				__instance.Message(MessageHud.MessageType.Center, $"You cannot place more than {maximumNumberOfPortals.Value} portals in this world.");
+				return false;
+			}
+			return true;
+		}
+	}
+
+	[HarmonyPatch(typeof(TeleportWorld), nameof(TeleportWorld.Awake))]
+	private static class AddNewPortalToList
+	{
+		private static void Postfix(TeleportWorld __instance)
+		{
+			if (__instance.GetComponent<WearNTear>() is { } wear && !ZNetView.m_forceDisableInit && (limitToVanillaPortals.Value == Toggle.Off || Utils.GetPrefabName(__instance.gameObject) == "portal_wood"))
+			{
+				knownPortals.Add(__instance.m_nview.GetZDO());
+				Action? onDestroy = wear.m_onDestroyed;
+				wear.m_onDestroyed = () =>
+				{
+					onDestroy?.Invoke();
+					knownPortals.Remove(__instance.m_nview.GetZDO());
+				};
+			}
 		}
 	}
 }
