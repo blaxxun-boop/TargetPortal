@@ -21,7 +21,7 @@ namespace TargetPortal;
 public class TargetPortal : BaseUnityPlugin
 {
 	private const string ModName = "TargetPortal";
-	private const string ModVersion = "1.1.18";
+	private const string ModVersion = "1.1.19";
 	private const string ModGUID = "org.bepinex.plugins.targetportal";
 
 	public static HashSet<ZDO> knownPortals = new();
@@ -36,6 +36,7 @@ public class TargetPortal : BaseUnityPlugin
 	private static ConfigEntry<Toggle> portalAnimation = null!;
 	private static ConfigEntry<int> portalNameLength = null!;
 	private static ConfigEntry<int> maximumNumberOfPortals = null!;
+	public static ConfigEntry<IgnoreItems> ignoreItemsTeleport = null!;
 	private static ConfigEntry<KeyboardShortcut> portalModeToggleModifierKey = null!;
 	public static ConfigEntry<KeyboardShortcut> mapPortalIconKey = null!;
 
@@ -66,6 +67,13 @@ public class TargetPortal : BaseUnityPlugin
 		Guild = 4,
 	}
 
+	public enum IgnoreItems
+	{
+		Never,
+		Default,
+		Always,
+	}
+
 	public void Awake()
 	{
 		serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On, "If on, the configuration is locked and can be changed by server admins only.");
@@ -78,6 +86,7 @@ public class TargetPortal : BaseUnityPlugin
 		mapPortalIconKey = config("1 - General", "Hotkey map icons", new KeyboardShortcut(KeyCode.P), "Hotkey to press while the map is open to toggle portal icons.", false);
 		portalNameLength = config("1 - General", "Maximum length for portal names", 10, new ConfigDescription("Maximum length for portal names.", new AcceptableValueRange<int>(5, 100)));
 		maximumNumberOfPortals = config("1 - General", "Maximum number of portals", 0, new ConfigDescription("Sets the maximum number of portals allowed in the world. Use 0 for no limit."));
+		ignoreItemsTeleport = config("1 - General", "Ignore item teleport restrictions", IgnoreItems.Default, new ConfigDescription("Never: Do not allow teleportation of restricted items.\nDefault: Keep vanilla behavior for portals.\nAlways: Ignore item restrictions on portals."));
 
 		Assembly assembly = Assembly.GetExecutingAssembly();
 		Harmony harmony = new(ModGUID);
@@ -123,14 +132,14 @@ public class TargetPortal : BaseUnityPlugin
 		}
 	}
 
-	private static readonly int vanillaPortalPrefab = "portal_wood".GetStableHashCode();
+	private static readonly HashSet<int> vanillaPortalPrefabs = new() { "portal_wood".GetStableHashCode(), "portal_stone".GetStableHashCode() };
 
 	private static IEnumerator FetchPortals()
 	{
 		while (true)
 		{
 			List<ZDO> portalList = ZDOMan.instance.GetPortals();
-			HashSet<ZDO> foundPortals = limitToVanillaPortals.Value == Toggle.On ? new HashSet<ZDO>(portalList.Where(z => z.m_prefab == vanillaPortalPrefab)) : new HashSet<ZDO>(portalList);
+			HashSet<ZDO> foundPortals = limitToVanillaPortals.Value == Toggle.On ? new HashSet<ZDO>(portalList.Where(z => vanillaPortalPrefabs.Contains(z.m_prefab))) : new HashSet<ZDO>(portalList);
 
 			if (ZNet.instance.IsServer())
 			{
@@ -157,7 +166,7 @@ public class TargetPortal : BaseUnityPlugin
 			List<ZDO> filtered = new();
 			if (limitToVanillaPortals.Value == Toggle.On)
 			{
-				filtered.AddRange(portals.Where(z => z.m_prefab != vanillaPortalPrefab));
+				filtered.AddRange(portals.Where(z => !vanillaPortalPrefabs.Contains(z.m_prefab)));
 			}
 			return filtered;
 		}
@@ -207,7 +216,7 @@ public class TargetPortal : BaseUnityPlugin
 	{
 		public static void Postfix(TeleportWorld __instance, ref string __result)
 		{
-			if (portalModeToggleModifierKey.Value.MainKey is KeyCode.None || allowNonPublicPortals.Value == Toggle.Off || (limitToVanillaPortals.Value == Toggle.On && Utils.GetPrefabName(__instance.gameObject) != "portal_wood"))
+			if (portalModeToggleModifierKey.Value.MainKey is KeyCode.None || allowNonPublicPortals.Value == Toggle.Off || (limitToVanillaPortals.Value == Toggle.On && Utils.GetPrefabName(__instance.gameObject) is not "portal_wood" and not "portal_stone"))
 			{
 				return;
 			}
@@ -227,7 +236,7 @@ public class TargetPortal : BaseUnityPlugin
 	{
 		public static bool Prefix(TeleportWorld __instance, bool hold)
 		{
-			if (hold || allowNonPublicPortals.Value == Toggle.Off || (limitToVanillaPortals.Value == Toggle.On && Utils.GetPrefabName(__instance.gameObject) != "portal_wood"))
+			if (hold || allowNonPublicPortals.Value == Toggle.Off || (limitToVanillaPortals.Value == Toggle.On && Utils.GetPrefabName(__instance.gameObject) is not "portal_wood" and not "portal_stone"))
 			{
 				return true;
 			}
@@ -323,7 +332,7 @@ public class TargetPortal : BaseUnityPlugin
 	{
 		private static void Postfix(TeleportWorld __instance)
 		{
-			if (__instance.GetComponent<WearNTear>() is { } wear && !ZNetView.m_forceDisableInit && (limitToVanillaPortals.Value == Toggle.Off || Utils.GetPrefabName(__instance.gameObject) == "portal_wood"))
+			if (__instance.GetComponent<WearNTear>() is { } wear && !ZNetView.m_forceDisableInit && (limitToVanillaPortals.Value == Toggle.Off || Utils.GetPrefabName(__instance.gameObject) is "portal_wood" or "portal_stone"))
 			{
 				knownPortals.Add(__instance.m_nview.GetZDO());
 				Action? onDestroy = wear.m_onDestroyed;

@@ -11,6 +11,7 @@ namespace TargetPortal;
 public static class Map
 {
 	public static bool Teleporting;
+	private static bool PortalAllowsAllItems;
 	private static readonly Dictionary<Minimap.PinData, ZDO> activePins = new();
 	private static bool[]? visibleIconTypes;
 	
@@ -24,14 +25,15 @@ public static class Map
 				return false;
 			}
 
-			if (TargetPortal.limitToVanillaPortals.Value == TargetPortal.Toggle.On && Utils.GetPrefabName(__instance.transform.parent.gameObject) != "portal_wood")
+			if (TargetPortal.limitToVanillaPortals.Value == TargetPortal.Toggle.On && Utils.GetPrefabName(__instance.transform.parent.gameObject) is not "portal_wood" and not "portal_stone")
 			{
 				return true;
 			}
 
 			bool origNoMap = Game.m_noMap;
 			Game.m_noMap = false;
-			
+
+			PortalAllowsAllItems = __instance.m_teleportWorld.m_allowAllItems;
 			Teleporting = true;
 			Minimap.instance.ShowPointOnMap(__instance.transform.position);
 
@@ -97,7 +99,7 @@ public static class Map
 
 	private static void HandlePortalClick()
 	{
-		if (!Player.m_localPlayer.IsTeleportable())
+		if (TargetPortal.ignoreItemsTeleport.Value != TargetPortal.IgnoreItems.Always && (TargetPortal.ignoreItemsTeleport.Value == TargetPortal.IgnoreItems.Never || !PortalAllowsAllItems) && !Player.m_localPlayer.IsTeleportable())
 		{
 			Player.m_localPlayer.Message(MessageHud.MessageType.Center, "$msg_noteleport");
 			return;
