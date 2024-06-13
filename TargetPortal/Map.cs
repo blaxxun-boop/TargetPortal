@@ -65,14 +65,20 @@ public static class Map
 		}
 
 		HashSet<Sprite> locationSprites = new(Minimap.instance.m_locationIcons.Select(l => l.m_icon));
-		HashSet<int> locationPins = new(Minimap.instance.m_pins.Where(p => locationSprites.Contains(p.m_icon)).Select(p => (int)p.m_type))
+		HashSet<int> visiblePins = new HashSet<int>(Minimap.instance.m_pins.Where(p => locationSprites.Contains(p.m_icon)).Select(p => (int)p.m_type))
 		{
 			AddMinimapPortalIcon.pinType,
 		};
 
+		if (TargetPortal.showPlayersDuringPortal.Value == TargetPortal.Toggle.On)
+		{
+			visiblePins.Add((int)Minimap.PinType.Player);
+		}
+
+
 		for (int i = 0; i < visibleIconTypes.Length; ++i)
 		{
-			if (locationPins.Contains(i))
+			if (visiblePins.Contains(i))
 			{
 				continue;
 			}
@@ -201,7 +207,7 @@ public static class Map
 	[HarmonyPatch(typeof(Minimap), nameof(Minimap.Update))]
 	private static class ShowPortalIcons
 	{
-		private static void Prefix()
+		private static void Prefix(Minimap __instance)
 		{
 			if (Minimap.instance.m_mode == Minimap.MapMode.Large && TargetPortal.mapPortalIconKey.Value.IsDown())
 			{
@@ -213,6 +219,11 @@ public static class Map
 				{
 					RemovePortalPins();
 				}
+			}
+
+			if (Teleporting && TargetPortal.showPlayersDuringPortal.Value == TargetPortal.Toggle.On)
+			{
+				__instance.UpdatePlayerPins(Time.deltaTime);
 			}
 		}
 	}
