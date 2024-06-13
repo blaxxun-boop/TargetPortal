@@ -65,7 +65,7 @@ public static class Map
 		}
 
 		HashSet<Sprite> locationSprites = new(Minimap.instance.m_locationIcons.Select(l => l.m_icon));
-		HashSet<int> visiblePins = new HashSet<int>(Minimap.instance.m_pins.Where(p => locationSprites.Contains(p.m_icon)).Select(p => (int)p.m_type))
+		HashSet<int> visiblePins = new(Minimap.instance.m_pins.Where(p => locationSprites.Contains(p.m_icon)).Select(p => (int)p.m_type))
 		{
 			AddMinimapPortalIcon.pinType,
 		};
