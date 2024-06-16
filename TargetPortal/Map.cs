@@ -13,8 +13,9 @@ public static class Map
 	public static bool Teleporting;
 	private static bool PortalAllowsAllItems;
 	private static readonly Dictionary<Minimap.PinData, ZDO> activePins = new();
+	private static bool shouldPortalsBeVisible = false;
 	private static bool[]? visibleIconTypes;
-	
+
 	[HarmonyPatch(typeof(TeleportWorldTrigger), nameof(TeleportWorldTrigger.OnTriggerEnter))]
 	private class OpenMapOnPortalEnter
 	{
@@ -39,7 +40,10 @@ public static class Map
 
 			Game.m_noMap = origNoMap;
 
-			AddPortalPins();
+			if (!shouldPortalsBeVisible)
+			{
+				AddPortalPins();
+			}
 
 			if (InventoryGui.IsVisible())
 			{
@@ -94,7 +98,10 @@ public static class Map
 	{
 		Teleporting = false;
 
-		RemovePortalPins();
+		if (!shouldPortalsBeVisible)
+		{
+			RemovePortalPins();
+		}
 
 		if (TargetPortal.hidePinsDuringPortal.Value == TargetPortal.Toggle.On)
 		{
@@ -205,20 +212,21 @@ public static class Map
 	}
 
 	[HarmonyPatch(typeof(Minimap), nameof(Minimap.Update))]
-	private static class ShowPortalIcons
+	private static class TogglePortalIcons
 	{
 		private static void Prefix(Minimap __instance)
 		{
-			if (Minimap.instance.m_mode == Minimap.MapMode.Large && TargetPortal.mapPortalIconKey.Value.IsDown())
+			if (Minimap.instance.m_mode != Minimap.MapMode.None && TargetPortal.mapPortalIconKey.Value.IsDown())
 			{
-				if (activePins.Count == 0)
-				{
-					AddPortalPins();
-				}
-				else
+				if (shouldPortalsBeVisible)
 				{
 					RemovePortalPins();
 				}
+				else
+				{
+					AddPortalPins();
+				}
+				shouldPortalsBeVisible = !shouldPortalsBeVisible;
 			}
 
 			if (Teleporting && TargetPortal.showPlayersDuringPortal.Value == TargetPortal.Toggle.On)
