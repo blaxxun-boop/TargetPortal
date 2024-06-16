@@ -21,7 +21,7 @@ namespace TargetPortal;
 public class TargetPortal : BaseUnityPlugin
 {
 	private const string ModName = "TargetPortal";
-	private const string ModVersion = "1.1.19";
+	internal const string ModVersion = "1.1.20";
 	private const string ModGUID = "org.bepinex.plugins.targetportal";
 
 	public static HashSet<ZDO> knownPortals = new();
@@ -33,6 +33,7 @@ public class TargetPortal : BaseUnityPlugin
 	public static ConfigEntry<Toggle> allowNonPublicPortals = null!;
 	public static ConfigEntry<Toggle> limitToVanillaPortals = null!;
 	public static ConfigEntry<Toggle> hidePinsDuringPortal = null!;
+	public static ConfigEntry<Toggle> showPlayersDuringPortal = null!;
 	private static ConfigEntry<Toggle> portalAnimation = null!;
 	private static ConfigEntry<int> portalNameLength = null!;
 	private static ConfigEntry<int> maximumNumberOfPortals = null!;
@@ -82,6 +83,7 @@ public class TargetPortal : BaseUnityPlugin
 		limitToVanillaPortals = config("1 - General", "Limit to vanilla portals", Toggle.Off, "If on, the mod ignores non-vanilla portals.");
 		portalModeToggleModifierKey = config("1 - General", "Modifier key for toggle", new KeyboardShortcut(KeyCode.LeftShift), "Modifier key that has to be pressed while interacting with a portal, to toggle its mode.", false);
 		hidePinsDuringPortal = config("1 - General", "Hide map pins", Toggle.On, "If on, all map pins will be hidden on the map that lets you select a target portal.", false);
+		showPlayersDuringPortal = config("1 - General", "Show player pins", Toggle.On, "If on, all player map pins will be shown on the map that lets you select a target portal.", false);
 		portalAnimation = config("1 - General", "Portal Animation", Toggle.On, "If on, portals will display their whirling animation while a player is infront of them.", false);
 		mapPortalIconKey = config("1 - General", "Hotkey map icons", new KeyboardShortcut(KeyCode.P), "Hotkey to press while the map is open to toggle portal icons.", false);
 		portalNameLength = config("1 - General", "Maximum length for portal names", 10, new ConfigDescription("Maximum length for portal names.", new AcceptableValueRange<int>(5, 100)));
