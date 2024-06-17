@@ -21,7 +21,7 @@ namespace TargetPortal;
 public class TargetPortal : BaseUnityPlugin
 {
 	private const string ModName = "TargetPortal";
-	internal const string ModVersion = "1.1.20";
+	private const string ModVersion = "1.1.20";
 	private const string ModGUID = "org.bepinex.plugins.targetportal";
 
 	public static HashSet<ZDO> knownPortals = new();
@@ -40,6 +40,8 @@ public class TargetPortal : BaseUnityPlugin
 	public static ConfigEntry<IgnoreItems> ignoreItemsTeleport = null!;
 	private static ConfigEntry<KeyboardShortcut> portalModeToggleModifierKey = null!;
 	public static ConfigEntry<KeyboardShortcut> mapPortalIconKey = null!;
+	private static ConfigEntry<PortalMode> defaultPortalMode = null!;
+	public static ConfigEntry<Toggle> allowIconToggleWithoutMap = null!;
 
 	private ConfigEntry<T> config<T>(string group, string name, T value, ConfigDescription description, bool synchronizedSetting = true)
 	{
@@ -89,6 +91,8 @@ public class TargetPortal : BaseUnityPlugin
 		portalNameLength = config("1 - General", "Maximum length for portal names", 10, new ConfigDescription("Maximum length for portal names.", new AcceptableValueRange<int>(5, 100)));
 		maximumNumberOfPortals = config("1 - General", "Maximum number of portals", 0, new ConfigDescription("Sets the maximum number of portals allowed in the world. Use 0 for no limit."));
 		ignoreItemsTeleport = config("1 - General", "Ignore item teleport restrictions", IgnoreItems.Default, new ConfigDescription("Never: Do not allow teleportation of restricted items.\nDefault: Keep vanilla behavior for portals.\nAlways: Ignore item restrictions on portals."));
+		defaultPortalMode = config("1 - General", "Default Portal mode", PortalMode.Private, new ConfigDescription("Sets the default mode for newly built portals."), false);
+		allowIconToggleWithoutMap = config("1 - General", "Allow Icon toggle map closed", Toggle.Off, new ConfigDescription("If on, the portal icons can be toggled on and off with the hotkey, even if the map is not opened."), false);
 
 		Assembly assembly = Assembly.GetExecutingAssembly();
 		Harmony harmony = new(ModGUID);
@@ -110,15 +114,18 @@ public class TargetPortal : BaseUnityPlugin
 
 		private static void OnPortalModeChange(long sender, ZDOID portalId, int portalMode, string ownerId, string ownerName)
 		{
-			if (!ZDOMan.instance.m_objectsByID.TryGetValue(portalId, out ZDO zdo))
+			if (ZDOMan.instance.m_objectsByID.TryGetValue(portalId, out ZDO zdo))
 			{
-				return;
+				SetPortalMode(zdo, portalMode, ownerId, ownerName);
 			}
-
-			zdo.Set("TargetPortal PortalMode", portalMode);
-			zdo.Set("TargetPortal PortalOwnerId", ownerId);
-			zdo.Set("TargetPortal PortalOwnerName", ownerName);
 		}
+	}
+
+	private static void SetPortalMode(ZDO zdo, int portalMode, string ownerId, string ownerName)
+	{
+		zdo.Set("TargetPortal PortalMode", portalMode);
+		zdo.Set("TargetPortal PortalOwnerId", ownerId);
+		zdo.Set("TargetPortal PortalOwnerName", ownerName);
 	}
 
 	[HarmonyPatch(typeof(ZNetScene), nameof(ZNetScene.Awake))]
@@ -233,6 +240,39 @@ public class TargetPortal : BaseUnityPlugin
 		}
 	}
 
+	private static int SquashPortalMode(int mode)
+	{
+		if (mode == (int)PortalMode.Group && !API.IsLoaded())
+        {
+        	++mode;
+        }
+        if (mode == (int)PortalMode.Admin && !configSync.IsAdmin)
+        {
+        	++mode;
+        }
+        if (mode == (int)PortalMode.Guild && !Guilds.API.IsLoaded())
+        {
+        	++mode;
+        }
+        if (mode > (int)PortalMode.Guild)
+        {
+        	mode = (int)PortalMode.Public;
+        }
+        return mode;
+	}
+	
+	[HarmonyPatch(typeof(TeleportWorld), nameof(TeleportWorld.Awake))]
+	private static class SetInitialPortalMode
+	{
+		private static void Prefix(TeleportWorld __instance)
+		{
+			if (__instance.GetComponent<Piece>() is {} piece && piece.m_nview.GetZDO() is {} zdo && !piece.IsPlacedByPlayer() && zdo.GetInt("TargetPortal PortalMode", -1) == -1)
+			{
+				SetPortalMode(zdo, SquashPortalMode((int)defaultPortalMode.Value), PrivilegeManager.GetNetworkUserId().Replace("Steam_", ""), Player.m_localPlayer.GetHoverName());
+			}
+		}
+	}
+
 	[HarmonyPatch(typeof(TeleportWorld), nameof(TeleportWorld.Interact))]
 	private class TogglePortalMode
 	{
@@ -247,22 +287,7 @@ public class TargetPortal : BaseUnityPlugin
 			{
 				int mode = __instance.m_nview.GetZDO().GetInt("TargetPortal PortalMode");
 				++mode;
-				if (mode == (int)PortalMode.Group && !API.IsLoaded())
-				{
-					++mode;
-				}
-				if (mode == (int)PortalMode.Admin && !configSync.IsAdmin)
-				{
-					++mode;
-				}
-				if (mode == (int)PortalMode.Guild && !Guilds.API.IsLoaded())
-				{
-					++mode;
-				}
-				if (mode > (int)PortalMode.Guild)
-				{
-					mode = (int)PortalMode.Public;
-				}
+				mode = SquashPortalMode(mode);
 
 				ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.Everybody, "TargetPortals ChangePortalMode", __instance.m_nview.GetZDO().m_uid, mode, PrivilegeManager.GetNetworkUserId().Replace("Steam_", ""), Player.m_localPlayer.GetHoverName());
 

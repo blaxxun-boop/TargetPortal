@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -211,20 +212,43 @@ public static class Map
 		}
 	}
 
+	[HarmonyPatch(typeof(Minimap), nameof(Minimap.Awake))]
+	private static class RefereshPortalPins
+	{
+		private static void Prefix(Minimap __instance)
+		{
+			IEnumerator Update()
+			{
+				while (true)
+				{
+					if (shouldPortalsBeVisible && !Teleporting)
+					{
+						AddPortalPins();
+					}
+					yield return new WaitForSeconds(1);
+				}
+			}
+			__instance.StartCoroutine(Update());
+		}
+	}
+
 	[HarmonyPatch(typeof(Minimap), nameof(Minimap.Update))]
 	private static class TogglePortalIcons
 	{
 		private static void Prefix(Minimap __instance)
 		{
-			if (Minimap.instance.m_mode != Minimap.MapMode.None && TargetPortal.mapPortalIconKey.Value.IsDown())
+			if ((TargetPortal.allowIconToggleWithoutMap.Value == TargetPortal.Toggle.On ? Minimap.instance.m_mode != Minimap.MapMode.None : Minimap.instance.m_mode == Minimap.MapMode.Large) && TargetPortal.mapPortalIconKey.Value.IsDown())
 			{
-				if (shouldPortalsBeVisible)
+				if (!Teleporting)
 				{
-					RemovePortalPins();
-				}
-				else
-				{
-					AddPortalPins();
+					if (shouldPortalsBeVisible)
+					{
+						RemovePortalPins();
+					}
+					else
+					{
+						AddPortalPins();
+					}
 				}
 				shouldPortalsBeVisible = !shouldPortalsBeVisible;
 			}
@@ -238,6 +262,8 @@ public static class Map
 
 	private static void AddPortalPins()
 	{
+		HashSet<Vector3> existingPins = new(activePins.Keys.Select(p => p.m_pos));
+		
 		string? myId = PrivilegeManager.GetNetworkUserId();
 		foreach (ZDO zdo in TargetPortal.knownPortals)
 		{
@@ -245,8 +271,22 @@ public static class Map
 			string ownerString = zdo.GetString("TargetPortal PortalOwnerId");
 			if (TargetPortal.allowNonPublicPortals.Value == TargetPortal.Toggle.Off || mode == TargetPortal.PortalMode.Public || (mode == TargetPortal.PortalMode.Admin && TargetPortal.configSync.IsAdmin) || ownerString == myId.Replace("Steam_", "") || (mode == TargetPortal.PortalMode.Group && API.GroupPlayers().Contains(PlayerReference.fromPlayerInfo(ZNet.instance.m_players.FirstOrDefault(p => p.m_host == ownerString)))) || (mode == TargetPortal.PortalMode.Guild && Guilds.API.GetOwnGuild() is { } guild && guild.Members.ContainsKey(new Guilds.PlayerReference { id = !ownerString.Contains('_') ? "Steam_" + ownerString : ownerString, name = zdo.GetString("TargetPortal PortalOwnerName") })))
 			{
-				activePins.Add(Minimap.instance.AddPin(zdo.m_position, (Minimap.PinType)AddMinimapPortalIcon.pinType, zdo.GetString("tag"), false, false), zdo);
+				if (existingPins.Contains(zdo.m_position))
+				{
+					existingPins.Remove(zdo.m_position);
+				}
+				else
+				{
+					activePins.Add(Minimap.instance.AddPin(zdo.m_position, (Minimap.PinType)AddMinimapPortalIcon.pinType, zdo.GetString("tag"), false, false), zdo);
+				}
 			}
+		}
+
+		List<Minimap.PinData> remove = activePins.Keys.Where(p => existingPins.Contains(p.m_pos)).ToList();
+		foreach (Minimap.PinData pin in remove)
+		{
+			Minimap.instance.RemovePin(pin);
+			activePins.Remove(pin);
 		}
 	}
 
