@@ -268,7 +268,7 @@ public class TargetPortal : BaseUnityPlugin
 		{
 			if (__instance.GetComponent<Piece>() is {} piece && piece.m_nview.GetZDO() is {} zdo && !piece.IsPlacedByPlayer() && zdo.GetInt("TargetPortal PortalMode", -1) == -1)
 			{
-				SetPortalMode(zdo, SquashPortalMode((int)defaultPortalMode.Value), PrivilegeManager.GetNetworkUserId().Replace("Steam_", ""), Player.m_localPlayer.GetHoverName());
+				SetPortalMode(zdo, SquashPortalMode((int)defaultPortalMode.Value), UserInfo.GetLocalUser().UserId.m_userID, Player.m_localPlayer.GetHoverName());
 			}
 		}
 	}
@@ -289,7 +289,7 @@ public class TargetPortal : BaseUnityPlugin
 				++mode;
 				mode = SquashPortalMode(mode);
 
-				ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.Everybody, "TargetPortals ChangePortalMode", __instance.m_nview.GetZDO().m_uid, mode, PrivilegeManager.GetNetworkUserId().Replace("Steam_", ""), Player.m_localPlayer.GetHoverName());
+				ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.Everybody, "TargetPortals ChangePortalMode", __instance.m_nview.GetZDO().m_uid, mode, UserInfo.GetLocalUser().UserId.m_userID, Player.m_localPlayer.GetHoverName());
 
 				return false;
 			}
