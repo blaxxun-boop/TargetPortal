@@ -97,6 +97,12 @@
         <Reference Include="UnityEngine.PhysicsModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
             <HintPath>$(GamePath)\valheim_Data\Managed\UnityEngine.PhysicsModule.dll</HintPath>
         </Reference>
+        <Reference Include="Splatform">
+            <HintPath>$(GamePath)\valheim_Data\Managed\Splatform.dll</HintPath>
+        </Reference>
+        <Reference Include="Splatform.Steam">
+            <HintPath>$(GamePath)\valheim_Data\Managed\Splatform.Steam.dll</HintPath>
+        </Reference>
     </ItemGroup>
     <ItemGroup>
         <Compile Include="CloseMap.cs"/>
