@@ -70,13 +70,16 @@
             <SpecificVersion>false</SpecificVersion>
         </Reference>
         <Reference Include="Groups">
-          <HintPath>GroupsAPI.dll</HintPath>
+            <HintPath>GroupsAPI.dll</HintPath>
         </Reference>
         <Reference Include="Guilds">
-          <HintPath>GuildsAPI.dll</HintPath>
+            <HintPath>GuildsAPI.dll</HintPath>
         </Reference>
         <Reference Include="ServerSync, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
             <HintPath>ServerSync.dll</HintPath>
+        </Reference>
+        <Reference Include="Splatform">
+            <HintPath>$(GamePath)\valheim_Data\Managed\Splatform.dll</HintPath>
         </Reference>
         <Reference Include="System"/>
         <Reference Include="System.Core"/>
