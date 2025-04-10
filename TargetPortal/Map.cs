@@ -5,7 +5,11 @@ using System.Linq;
 using System.Reflection;
 using Groups;
 using HarmonyLib;
+using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
+using Object = UnityEngine.Object;
 
 namespace TargetPortal;
 
@@ -16,6 +20,7 @@ public static class Map
 	private static readonly Dictionary<Minimap.PinData, ZDO> activePins = new();
 	private static bool shouldPortalsBeVisible = false;
 	private static bool[]? visibleIconTypes;
+	private static GameObject favoriteList = null!;
 
 	[HarmonyPatch(typeof(TeleportWorldTrigger), nameof(TeleportWorldTrigger.OnTriggerEnter))]
 	private class OpenMapOnPortalEnter
@@ -111,7 +116,9 @@ public static class Map
 		}
 	}
 
-	private static void HandlePortalClick()
+	delegate bool GetPortal(out Minimap.PinData? closestPin, out ZDO? portalZDO);
+
+	private static void HandlePortalClick(GetPortal getPortal)
 	{
 		if (TargetPortal.ignoreItemsTeleport.Value != TargetPortal.IgnoreItems.Always && (TargetPortal.ignoreItemsTeleport.Value == TargetPortal.IgnoreItems.Never || !PortalAllowsAllItems) && !Player.m_localPlayer.IsTeleportable())
 		{
@@ -119,13 +126,28 @@ public static class Map
 			return;
 		}
 
+		if (!getPortal(out Minimap.PinData? closestPin, out ZDO? portalZDO))
+		{
+			return;
+		}
+
+		Quaternion rotation = portalZDO!.GetRotation();
+
+		Minimap.instance.SetMapMode(Minimap.MapMode.Small);
+		CancelTeleport();
+
+		Player.m_localPlayer.TeleportTo(closestPin!.m_pos + rotation * Vector3.forward + Vector3.up, rotation, true);
+	}
+
+	private static bool GetClosestPortal(out Minimap.PinData? closestPin, out ZDO? portalZDO)
+	{
 		foreach (Minimap.PinData pinData in activePins.Keys)
 		{
 			pinData.m_save = true;
 		}
 
 		Minimap Minimap = Minimap.instance;
-		Minimap.PinData? closestPin = Minimap.GetClosestPin(Minimap.ScreenToWorldPoint(Input.mousePosition), Minimap.m_removeRadius * (Minimap.m_largeZoom * 2f));
+		closestPin = Minimap.GetClosestPin(Minimap.ScreenToWorldPoint(Input.mousePosition), Minimap.m_removeRadius * (Minimap.m_largeZoom * 2f));
 
 		foreach (Minimap.PinData pinData in activePins.Keys)
 		{
@@ -134,20 +156,11 @@ public static class Map
 
 		if (closestPin is null)
 		{
-			return;
+			portalZDO = null;
+			return false;
 		}
 
-		if (!activePins.TryGetValue(closestPin, out ZDO portalZDO))
-		{
-			return;
-		}
-
-		Quaternion rotation = portalZDO.GetRotation();
-
-		Minimap.SetMapMode(Minimap.MapMode.Small);
-		CancelTeleport();
-
-		Player.m_localPlayer.TeleportTo(closestPin.m_pos + rotation * Vector3.forward + Vector3.up, rotation, true);
+		return activePins.TryGetValue(closestPin, out portalZDO);
 	}
 
 	[HarmonyPatch(typeof(Minimap), nameof(Minimap.SetMapMode))]
@@ -191,9 +204,43 @@ public static class Map
 			{
 				return true;
 			}
-			HandlePortalClick();
+			HandlePortalClick(GetClosestPortal);
 			return false;
 		}
+	}
+
+	[HarmonyPatch(typeof(Minimap), nameof(Minimap.OnMapRightClick))]
+	private class MapRightClick
+	{
+		private static void Prefix()
+		{
+			if (!GetClosestPortal(out _, out ZDO? portalZDO))
+			{
+				return;
+			}
+			ToggleFavoritePortal(portalZDO!);
+		}
+	}
+
+	private static void ToggleFavoritePortal(ZDO portalZDO)
+	{
+		if (Player.m_localPlayer.m_customData.TryGetValue("TargetPortal Favorites", out string portals))
+		{
+			List<string> portalList = portals.Split(',').ToList();
+
+			if (!portalList.Remove(portalZDO.m_uid.ToString()))
+			{
+				portalList.Add(portalZDO.m_uid.ToString());
+			}
+
+			Player.m_localPlayer.m_customData["TargetPortal Favorites"] = string.Join(",", portalList);
+		}
+		else
+		{
+			Player.m_localPlayer.m_customData.Add("TargetPortal Favorites", portalZDO.m_uid.ToString());
+		}
+		
+		FillFavorites();
 	}
 
 	[HarmonyPatch]
@@ -215,7 +262,7 @@ public static class Map
 	[HarmonyPatch(typeof(Minimap), nameof(Minimap.Awake))]
 	private static class RefereshPortalPins
 	{
-		private static void Prefix(Minimap __instance)
+		private static void Postfix(Minimap __instance)
 		{
 			IEnumerator Update()
 			{
@@ -229,6 +276,89 @@ public static class Map
 				}
 			}
 			__instance.StartCoroutine(Update());
+		}
+	}
+
+	[HarmonyPatch(typeof(Minimap), nameof(Minimap.Awake))]
+	private static class AddFavoritePins
+	{
+		private static void Postfix(Minimap __instance)
+		{
+			favoriteList = new GameObject("TargetPortal Favorites")
+			{
+				transform =
+				{
+					parent = __instance.m_largeRoot.transform,
+				},
+			};
+
+			RectTransform rect = favoriteList.AddComponent<RectTransform>();
+			rect.anchorMin = new Vector2(0, 0.5f);
+			rect.anchorMax = new Vector2(0, 0.5f);
+			rect.anchoredPosition = new Vector2(15, 0);
+			rect.sizeDelta = new Vector2(200, 500);
+			rect.pivot = new Vector2(0, 0.5f);
+			favoriteList.AddComponent<VerticalLayoutGroup>().childForceExpandHeight = false;
+		}
+	}
+
+	private static void ClearFavorites()
+	{
+		for (int i = 0; i < favoriteList.transform.childCount; ++i)
+		{
+			Object.Destroy(favoriteList.transform.GetChild(i).gameObject);
+		}
+	}
+
+	private static void FillFavorites()
+	{
+		ClearFavorites();
+		
+		if (Player.m_localPlayer.m_customData.TryGetValue("TargetPortal Favorites", out string portals))
+		{
+			Dictionary<string, Minimap.PinData> pins = activePins.ToDictionary(p => p.Value.m_uid.ToString(), p => p.Key);
+
+			List<string> portalList = portals.Split(',').ToList();
+
+			foreach (string portal in portalList)
+			{
+				if (pins.TryGetValue(portal, out Minimap.PinData pin))
+				{
+					GameObject favoriteEntry = Object.Instantiate(Minimap.instance.m_largeRoot.transform.Find("KeyHints/keyboard_hints/AddPin").gameObject, favoriteList.transform);
+					favoriteEntry.GetComponent<HorizontalLayoutGroup>().childAlignment = TextAnchor.MiddleLeft;
+					Transform label = favoriteEntry.transform.Find("Label");
+					label.SetAsLastSibling();
+					label.GetComponent<TextMeshProUGUI>().text = pin.m_name;
+					label.GetComponent<RectTransform>().pivot = new Vector2(0, 0.5f);
+					Image portalIcon = favoriteEntry.transform.Find("keyboard_hint").GetComponent<Image>();
+					portalIcon.sprite = pin.m_icon;
+					portalIcon.gameObject.AddComponent<FavoriteClicked>().Pin = pin;
+				}
+			}
+		}
+	}
+
+	private class FavoriteClicked : MonoBehaviour, IPointerClickHandler
+	{
+		public Minimap.PinData Pin = null!;
+
+		public void OnPointerClick(PointerEventData pointerEventData)
+		{
+			if (pointerEventData.button == PointerEventData.InputButton.Left)
+			{
+				HandlePortalClick((out Minimap.PinData? pin, out ZDO? zdo) =>
+				{
+					pin = Pin;
+					return activePins.TryGetValue(pin, out zdo);
+				});
+			}
+			else if (pointerEventData.button == PointerEventData.InputButton.Right)
+			{
+				if (activePins.TryGetValue(Pin, out ZDO zdo))
+				{
+					ToggleFavoritePortal(zdo);
+				}
+			}
 		}
 	}
 
@@ -262,8 +392,9 @@ public static class Map
 
 	private static void AddPortalPins()
 	{
+		bool changedPins = false;
 		HashSet<Vector3> existingPins = new(activePins.Keys.Select(p => p.m_pos));
-		
+
 		string myId = UserInfo.GetLocalUser().UserId.ToString();
 		foreach (ZDO zdo in TargetPortal.knownPortals)
 		{
@@ -278,6 +409,7 @@ public static class Map
 				else
 				{
 					activePins.Add(Minimap.instance.AddPin(zdo.m_position, (Minimap.PinType)AddMinimapPortalIcon.pinType, zdo.GetString("tag"), false, false), zdo);
+					changedPins = true;
 				}
 			}
 		}
@@ -287,6 +419,12 @@ public static class Map
 		{
 			Minimap.instance.RemovePin(pin);
 			activePins.Remove(pin);
+			changedPins = true;
+		}
+
+		if (changedPins)
+		{
+			FillFavorites();
 		}
 	}
 
@@ -297,5 +435,7 @@ public static class Map
 			Minimap.instance.RemovePin(pinData);
 		}
 		activePins.Clear();
+		
+		ClearFavorites();
 	}
 }
