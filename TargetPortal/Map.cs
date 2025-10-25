@@ -120,7 +120,7 @@ public static class Map
 
 	private static void HandlePortalClick(GetPortal getPortal)
 	{
-		if (TargetPortal.ignoreItemsTeleport.Value != TargetPortal.IgnoreItems.Always && (TargetPortal.ignoreItemsTeleport.Value == TargetPortal.IgnoreItems.Never || !PortalAllowsAllItems) && !Player.m_localPlayer.IsTeleportable())
+		if ((TargetPortal.ignoreItemsTeleport.Value != TargetPortal.IgnoreItems.Always && (TargetPortal.ignoreItemsTeleport.Value == TargetPortal.IgnoreItems.Never || !PortalAllowsAllItems)) || !Player.m_localPlayer.IsTeleportable())
 		{
 			Player.m_localPlayer.Message(MessageHud.MessageType.Center, "$msg_noteleport");
 			return;
