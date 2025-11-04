@@ -118,17 +118,22 @@ public static class Map
 
 	delegate bool GetPortal(out Minimap.PinData? closestPin, out ZDO? portalZDO);
 
-	private static void HandlePortalClick(GetPortal getPortal)
+	private static bool HandlePortalClick(GetPortal getPortal)
 	{
+		if (!Teleporting)
+		{
+			return true;
+		}
+
 		if (TargetPortal.ignoreItemsTeleport.Value != TargetPortal.IgnoreItems.Always && (TargetPortal.ignoreItemsTeleport.Value == TargetPortal.IgnoreItems.Never || !PortalAllowsAllItems) && !Player.m_localPlayer.IsTeleportable())
 		{
 			Player.m_localPlayer.Message(MessageHud.MessageType.Center, "$msg_noteleport");
-			return;
+			return false;
 		}
 
 		if (!getPortal(out Minimap.PinData? closestPin, out ZDO? portalZDO))
 		{
-			return;
+			return false;
 		}
 
 		Quaternion rotation = portalZDO!.GetRotation();
@@ -137,6 +142,7 @@ public static class Map
 		CancelTeleport();
 
 		Player.m_localPlayer.TeleportTo(closestPin!.m_pos + rotation * Vector3.forward + Vector3.up, rotation, true);
+		return false;
 	}
 
 	private static bool GetClosestPortal(out Minimap.PinData? closestPin, out ZDO? portalZDO)
@@ -204,8 +210,7 @@ public static class Map
 			{
 				return true;
 			}
-			HandlePortalClick(GetClosestPortal);
-			return false;
+			return HandlePortalClick(GetClosestPortal);
 		}
 	}
 
@@ -400,7 +405,7 @@ public static class Map
 		{
 			TargetPortal.PortalMode mode = (TargetPortal.PortalMode)zdo.GetInt("TargetPortal PortalMode");
 			string ownerString = zdo.GetString("TargetPortal PortalOwnerId");
-			if (TargetPortal.allowNonPublicPortals.Value == TargetPortal.Toggle.Off || mode == TargetPortal.PortalMode.Public || (mode == TargetPortal.PortalMode.Admin && TargetPortal.configSync.IsAdmin) || ownerString == myId.Replace("Steam_", "") || (mode == TargetPortal.PortalMode.Group && API.GroupPlayers().Contains(PlayerReference.fromPlayerInfo(ZNet.instance.m_players.FirstOrDefault(p => p.m_userInfo.m_id.ToString() == ownerString)))) || (mode == TargetPortal.PortalMode.Guild && Guilds.API.GetOwnGuild() is { } guild && guild.Members.ContainsKey(new Guilds.PlayerReference { id = !ownerString.Contains('_') ? "Steam_" + ownerString : ownerString, name = zdo.GetString("TargetPortal PortalOwnerName") })))
+			if (TargetPortal.allowNonPublicPortals.Value == TargetPortal.Toggle.Off || mode == TargetPortal.PortalMode.Public || (mode == TargetPortal.PortalMode.Admin && TargetPortal.configSync.IsAdmin) || ownerString == myId.Replace("Steam_", "") || (mode == TargetPortal.PortalMode.Group && API.GroupPlayers().Contains(PlayerReference.fromPlayerInfo(ZNet.instance.m_players.FirstOrDefault(p => p.m_userInfo.m_id.ToString().Replace("Steam_", "") == ownerString)))) || (mode == TargetPortal.PortalMode.Guild && Guilds.API.GetOwnGuild() is { } guild && guild.Members.ContainsKey(new Guilds.PlayerReference { id = !ownerString.Contains('_') ? "Steam_" + ownerString : ownerString, name = zdo.GetString("TargetPortal PortalOwnerName") })))
 			{
 				if (existingPins.Contains(zdo.m_position))
 				{
