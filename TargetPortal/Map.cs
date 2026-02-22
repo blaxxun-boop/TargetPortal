@@ -271,6 +271,7 @@ public static class Map
 		{
 			IEnumerator Update()
 			{
+				yield return null;
 				while (true)
 				{
 					if (shouldPortalsBeVisible && !Teleporting)
