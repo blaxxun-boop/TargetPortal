@@ -94,8 +94,8 @@
         <Reference Include="UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
             <HintPath>$(GamePath)\valheim_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
         </Reference>
-        <Reference Include="UnityEngine.ImageConversionModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-            <HintPath>$(GamePath)\valheim_Data\Managed\UnityEngine.ImageConversionModule_Old.dll</HintPath>
+        <Reference Include="UnityEngine.ImageConversionModule">
+            <HintPath>$(GamePath)\valheim_Data\Managed\UnityEngine.ImageConversionModuleOld.dll</HintPath>
         </Reference>
         <Reference Include="UnityEngine.InputLegacyModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
             <HintPath>$(GamePath)\valheim_Data\Managed\UnityEngine.InputLegacyModule.dll</HintPath>

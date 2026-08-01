@@ -21,7 +21,7 @@ namespace TargetPortal;
 public class TargetPortal : BaseUnityPlugin
 {
 	private const string ModName = "TargetPortal";
-	private const string ModVersion = "1.2.3";
+	private const string ModVersion = "1.2.4";
 	private const string ModGUID = "org.bepinex.plugins.targetportal";
 
 	public static HashSet<ZDO> knownPortals = new();
@@ -226,6 +226,11 @@ public class TargetPortal : BaseUnityPlugin
 		public static void Postfix(TeleportWorld __instance, ref string __result)
 		{
 			if (portalModeToggleModifierKey.Value.MainKey is KeyCode.None || allowNonPublicPortals.Value == Toggle.Off || (limitToVanillaPortals.Value == Toggle.On && Utils.GetPrefabName(__instance.gameObject) is not "portal_wood" and not "portal_stone"))
+			{
+				return;
+			}
+
+			if (!__instance.m_nview.IsValid())
 			{
 				return;
 			}
