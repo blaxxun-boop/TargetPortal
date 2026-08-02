@@ -229,20 +229,21 @@ public static class Map
 
 	private static void ToggleFavoritePortal(ZDO portalZDO)
 	{
+		string portalIdentifier = portalZDO.GetPosition().ToString();
 		if (Player.m_localPlayer.m_customData.TryGetValue("TargetPortal Favorites", out string portals))
 		{
-			List<string> portalList = portals.Split(',').ToList();
+			List<string> portalList = portals.Split('|').ToList();
 
-			if (!portalList.Remove(portalZDO.m_uid.ToString()))
+			if (!portalList.Remove(portalIdentifier))
 			{
-				portalList.Add(portalZDO.m_uid.ToString());
+				portalList.Add(portalIdentifier);
 			}
 
-			Player.m_localPlayer.m_customData["TargetPortal Favorites"] = string.Join(",", portalList);
+			Player.m_localPlayer.m_customData["TargetPortal Favorites"] = string.Join("|", portalList);
 		}
 		else
 		{
-			Player.m_localPlayer.m_customData.Add("TargetPortal Favorites", portalZDO.m_uid.ToString());
+			Player.m_localPlayer.m_customData.Add("TargetPortal Favorites", portalIdentifier);
 		}
 		
 		FillFavorites();
@@ -322,9 +323,9 @@ public static class Map
 		
 		if (Player.m_localPlayer.m_customData.TryGetValue("TargetPortal Favorites", out string portals))
 		{
-			Dictionary<string, Minimap.PinData> pins = activePins.ToDictionary(p => p.Value.m_uid.ToString(), p => p.Key);
+			Dictionary<string, Minimap.PinData> pins = activePins.ToDictionary(p => p.Value.m_position.ToString(), p => p.Key);
 
-			List<string> portalList = portals.Split(',').ToList();
+			List<string> portalList = portals.Split('|').ToList();
 
 			foreach (string portal in portalList)
 			{
@@ -373,7 +374,7 @@ public static class Map
 	{
 		private static void Prefix(Minimap __instance)
 		{
-			if ((TargetPortal.allowIconToggleWithoutMap.Value == TargetPortal.Toggle.On ? Minimap.instance.m_mode != Minimap.MapMode.None : Minimap.instance.m_mode == Minimap.MapMode.Large) && TargetPortal.mapPortalIconKey.Value.IsDown())
+			if ((TargetPortal.allowIconToggleWithoutMap.Value == TargetPortal.Toggle.On ? Minimap.instance.m_mode != Minimap.MapMode.None : Minimap.instance.m_mode == Minimap.MapMode.Large) && TargetPortal.mapPortalIconKey.Value.IsDown() && Player.m_localPlayer.GetComponent<PlayerController>().TakeInput())
 			{
 				if (!Teleporting)
 				{
