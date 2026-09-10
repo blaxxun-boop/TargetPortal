@@ -125,7 +125,7 @@ public static class Map
 			return true;
 		}
 
-		if (TargetPortal.ignoreItemsTeleport.Value != TargetPortal.IgnoreItems.Always && (TargetPortal.ignoreItemsTeleport.Value == TargetPortal.IgnoreItems.Never || !PortalAllowsAllItems) && !Player.m_localPlayer.IsTeleportable())
+		if (TargetPortal.ignoreItemsTeleport.Value != TargetPortal.IgnoreItems.Always && (TargetPortal.ignoreItemsTeleport.Value == TargetPortal.IgnoreItems.Never || !PortalAllowsAllItems) && !Player.m_localPlayer.IsTeleportable(false))
 		{
 			Player.m_localPlayer.Message(MessageHud.MessageType.Center, "$msg_noteleport");
 			return false;
@@ -214,7 +214,7 @@ public static class Map
 		}
 	}
 
-	[HarmonyPatch(typeof(Minimap), nameof(Minimap.OnMapRightClick))]
+	[HarmonyPatch(typeof(Minimap), nameof(Minimap.RemovePinUnderPointer))]
 	private class MapRightClick
 	{
 		private static void Prefix()
@@ -255,7 +255,7 @@ public static class Map
 		private static IEnumerable<MethodInfo> TargetMethods() => new[]
 		{
 			AccessTools.DeclaredMethod(typeof(Minimap), nameof(Minimap.OnMapDblClick)),
-			AccessTools.DeclaredMethod(typeof(Minimap), nameof(Minimap.OnMapRightClick)),
+			AccessTools.DeclaredMethod(typeof(Minimap), nameof(Minimap.RemovePinUnderPointer)),
 			AccessTools.DeclaredMethod(typeof(Minimap), nameof(Minimap.OnMapMiddleClick)),
 		};
 

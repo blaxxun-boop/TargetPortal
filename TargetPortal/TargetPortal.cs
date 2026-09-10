@@ -21,7 +21,7 @@ namespace TargetPortal;
 public class TargetPortal : BaseUnityPlugin
 {
 	private const string ModName = "TargetPortal";
-	private const string ModVersion = "1.2.5";
+	private const string ModVersion = "1.2.6";
 	private const string ModGUID = "org.bepinex.plugins.targetportal";
 
 	public static HashSet<ZDO> knownPortals = new();
@@ -147,8 +147,8 @@ public class TargetPortal : BaseUnityPlugin
 	{
 		while (true)
 		{
-			List<ZDO> portalList = ZDOMan.instance.GetPortals();
-			HashSet<ZDO> foundPortals = limitToVanillaPortals.Value == Toggle.On ? new HashSet<ZDO>(portalList.Where(z => vanillaPortalPrefabs.Contains(z.m_prefab))) : new HashSet<ZDO>(portalList);
+			Dictionary<ZoneSystem.SectorIndex, List<ZDO>> portalList = ZDOMan.instance.GetPortals();
+			HashSet<ZDO> foundPortals = limitToVanillaPortals.Value == Toggle.On ? new HashSet<ZDO>(portalList.SelectMany(l => l.Value).Where(z => vanillaPortalPrefabs.Contains(z.m_prefab))) : new HashSet<ZDO>(portalList.SelectMany(l => l.Value));
 
 			if (ZNet.instance.IsServer())
 			{
