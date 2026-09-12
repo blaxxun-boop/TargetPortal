@@ -332,6 +332,9 @@ public static class Map
 				if (pins.TryGetValue(portal, out Minimap.PinData pin))
 				{
 					GameObject favoriteEntry = Object.Instantiate(Minimap.instance.m_largeRoot.transform.Find("KeyHints/keyboard_hints/AddPin").gameObject, favoriteList.transform);
+					// The template lives under the keyboard hint group, which is switched off while a
+					// gamepad is in use; the clone has to be shown on its own regardless.
+					favoriteEntry.SetActive(true);
 					favoriteEntry.GetComponent<HorizontalLayoutGroup>().childAlignment = TextAnchor.MiddleLeft;
 					Transform label = favoriteEntry.transform.Find("Label");
 					label.SetAsLastSibling();
