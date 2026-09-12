@@ -42,6 +42,8 @@ public class TargetPortal : BaseUnityPlugin
 	public static ConfigEntry<KeyboardShortcut> mapPortalIconKey = null!;
 	private static ConfigEntry<PortalMode> defaultPortalMode = null!;
 	public static ConfigEntry<Toggle> allowIconToggleWithoutMap = null!;
+	public static ConfigEntry<GamepadButton> gamepadTeleportButton = null!;
+	public static ConfigEntry<GamepadButton> gamepadFavoriteButton = null!;
 
 	private ConfigEntry<T> config<T>(string group, string name, T value, ConfigDescription description, bool synchronizedSetting = true)
 	{
@@ -77,6 +79,31 @@ public class TargetPortal : BaseUnityPlugin
 		Always,
 	}
 
+	public enum GamepadButton
+	{
+		Disabled,
+		A,
+		X,
+		Y,
+		LeftBumper,
+		RightBumper,
+		LeftTrigger,
+		RightTrigger,
+	}
+
+	// B is deliberately absent: the map uses it to close, which doubles as cancelling the teleport.
+	public static string? GamepadButtonName(GamepadButton button) => button switch
+	{
+		GamepadButton.A => "JoyButtonA",
+		GamepadButton.X => "JoyButtonX",
+		GamepadButton.Y => "JoyButtonY",
+		GamepadButton.LeftBumper => "JoyLBumper",
+		GamepadButton.RightBumper => "JoyRBumper",
+		GamepadButton.LeftTrigger => "JoyLTrigger",
+		GamepadButton.RightTrigger => "JoyRTrigger",
+		_ => null,
+	};
+
 	public void Awake()
 	{
 		serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On, "If on, the configuration is locked and can be changed by server admins only.");
@@ -93,6 +120,8 @@ public class TargetPortal : BaseUnityPlugin
 		ignoreItemsTeleport = config("1 - General", "Ignore item teleport restrictions", IgnoreItems.Default, new ConfigDescription("Never: Do not allow teleportation of restricted items.\nDefault: Keep vanilla behavior for portals.\nAlways: Ignore item restrictions on portals."));
 		defaultPortalMode = config("1 - General", "Default Portal mode", PortalMode.Private, new ConfigDescription("Sets the default mode for newly built portals."), false);
 		allowIconToggleWithoutMap = config("1 - General", "Allow Icon toggle map closed", Toggle.Off, new ConfigDescription("If on, the portal icons can be toggled on and off with the hotkey, even if the map is not opened."), false);
+		gamepadTeleportButton = config("1 - General", "Gamepad teleport button", GamepadButton.A, new ConfigDescription("Gamepad button that teleports to the portal under the map crosshair."), false);
+		gamepadFavoriteButton = config("1 - General", "Gamepad favorite button", GamepadButton.Y, new ConfigDescription("Gamepad button that toggles the portal under the map crosshair as a favorite. Y is the only face button the vanilla map leaves unused."), false);
 
 		Assembly assembly = Assembly.GetExecutingAssembly();
 		Harmony harmony = new(ModGUID);

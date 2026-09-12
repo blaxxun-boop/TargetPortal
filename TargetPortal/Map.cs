@@ -145,6 +145,17 @@ public static class Map
 		return false;
 	}
 
+	// Gamepads have no pointer on the map: the crosshair sits fixed at the center of the screen and
+	// the map pans underneath it. ZInput.pointerPosition keeps reporting the idle mouse position, so
+	// vanilla targets the screen center for every gamepad map action and we have to match that.
+	private static Vector3 GetMapCursorWorldPoint()
+	{
+		Vector3 screenPoint = ZInput.IsExclusiveGamepadActive()
+			? new Vector3(Screen.width / 2f, Screen.height / 2f)
+			: Input.mousePosition;
+		return Minimap.instance.ScreenToWorldPoint(screenPoint);
+	}
+
 	private static bool GetClosestPortal(out Minimap.PinData? closestPin, out ZDO? portalZDO)
 	{
 		foreach (Minimap.PinData pinData in activePins.Keys)
@@ -153,7 +164,7 @@ public static class Map
 		}
 
 		Minimap Minimap = Minimap.instance;
-		closestPin = Minimap.GetClosestPin(Minimap.ScreenToWorldPoint(Input.mousePosition), Minimap.m_removeRadius * (Minimap.m_largeZoom * 2f));
+		closestPin = Minimap.GetClosestPin(GetMapCursorWorldPoint(), Minimap.m_removeRadius * (Minimap.m_largeZoom * 2f));
 
 		foreach (Minimap.PinData pinData in activePins.Keys)
 		{
@@ -247,6 +258,66 @@ public static class Map
 		}
 		
 		FillFavorites();
+	}
+
+	// A gamepad never produces the pointer events that drive OnMapLeftClick / RemovePinUnderPointer,
+	// so the portal selection has to be read off the buttons directly.
+	[HarmonyPatch(typeof(Minimap), nameof(Minimap.Update))]
+	private static class GamepadPortalSelection
+	{
+		private static bool ButtonDown(TargetPortal.GamepadButton button) => TargetPortal.GamepadButtonName(button) is { } name && ZInput.GetButtonDown(name);
+
+		// Mirrors the takeInput check Minimap.Update makes before handling any map input.
+		private static bool TakeInput() =>
+			(Chat.instance == null || !Chat.instance.HasFocus())
+			&& !global::Console.IsVisible()
+			&& !TextInput.IsVisible()
+			&& !Menu.IsActive()
+			&& !InventoryGui.IsVisible()
+			&& (Hud.instance == null || !Hud.instance.m_buildUi.SearchFieldFocused);
+
+		private static void Prefix(Minimap __instance)
+		{
+			if (!Teleporting || __instance.m_mode != Minimap.MapMode.Large || !ZInput.IsGamepadActive())
+			{
+				return;
+			}
+
+			// The pin name dialog cannot be open here, since every route into it is blocked while
+			// Teleporting, so InTextInput covers the remaining text entry cases on its own.
+			if (ZInput.VirtualKeyboardOpen || Minimap.InTextInput() || !TakeInput())
+			{
+				return;
+			}
+
+			if (ButtonDown(TargetPortal.gamepadTeleportButton.Value))
+			{
+				HandlePortalClick(GetClosestPortal);
+			}
+			else if (ButtonDown(TargetPortal.gamepadFavoriteButton.Value) && GetClosestPortal(out _, out ZDO? portalZDO))
+			{
+				ToggleFavoritePortal(portalZDO!);
+			}
+		}
+	}
+
+	// While a portal is being picked, the map is a portal selector and not a pin editor. The mouse
+	// paths are already blocked by MapAlternativeClick, but the gamepad reaches these directly from
+	// Minimap.UpdateMap: A opens the pin name dialog and RB deletes the pin under the crosshair.
+	[HarmonyPatch(typeof(Minimap), nameof(Minimap.ShowPinNameInput))]
+	private static class BlockPinCreationWhileTeleporting
+	{
+		private static bool Prefix() => !Teleporting;
+	}
+
+	[HarmonyPatch(typeof(Minimap), nameof(Minimap.RemovePin), typeof(Vector3), typeof(float))]
+	private static class BlockPinRemovalWhileTeleporting
+	{
+		private static bool Prefix(ref bool __result)
+		{
+			__result = false;
+			return !Teleporting;
+		}
 	}
 
 	[HarmonyPatch]
