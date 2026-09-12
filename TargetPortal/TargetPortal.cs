@@ -42,6 +42,9 @@ public class TargetPortal : BaseUnityPlugin
 	public static ConfigEntry<KeyboardShortcut> mapPortalIconKey = null!;
 	private static ConfigEntry<PortalMode> defaultPortalMode = null!;
 	public static ConfigEntry<Toggle> allowIconToggleWithoutMap = null!;
+	public static ConfigEntry<GamepadButton> gamepadTeleportButton = null!;
+	public static ConfigEntry<GamepadButton> gamepadFavoriteButton = null!;
+	public static ConfigEntry<GamepadButton> gamepadCycleFavoritesButton = null!;
 
 	private ConfigEntry<T> config<T>(string group, string name, T value, ConfigDescription description, bool synchronizedSetting = true)
 	{
@@ -77,6 +80,34 @@ public class TargetPortal : BaseUnityPlugin
 		Always,
 	}
 
+	public enum GamepadButton
+	{
+		Disabled,
+		A,
+		X,
+		Y,
+		LeftBumper,
+		RightBumper,
+		LeftTrigger,
+		RightTrigger,
+		DPadLeft,
+	}
+
+	// B is deliberately absent: the map uses it to close, which doubles as cancelling the teleport.
+	public static string? GamepadButtonName(GamepadButton button) => button switch
+	{
+		GamepadButton.A => "JoyButtonA",
+		GamepadButton.X => "JoyButtonX",
+		GamepadButton.Y => "JoyButtonY",
+		GamepadButton.LeftBumper => "JoyLBumper",
+		GamepadButton.RightBumper => "JoyRBumper",
+		GamepadButton.LeftTrigger => "JoyLTrigger",
+		GamepadButton.RightTrigger => "JoyRTrigger",
+		// The other three directions drive the vanilla pin type and icon filters on the large map.
+		GamepadButton.DPadLeft => "JoyDPadLeft",
+		_ => null,
+	};
+
 	public void Awake()
 	{
 		serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On, "If on, the configuration is locked and can be changed by server admins only.");
@@ -93,6 +124,9 @@ public class TargetPortal : BaseUnityPlugin
 		ignoreItemsTeleport = config("1 - General", "Ignore item teleport restrictions", IgnoreItems.Default, new ConfigDescription("Never: Do not allow teleportation of restricted items.\nDefault: Keep vanilla behavior for portals.\nAlways: Ignore item restrictions on portals."));
 		defaultPortalMode = config("1 - General", "Default Portal mode", PortalMode.Private, new ConfigDescription("Sets the default mode for newly built portals."), false);
 		allowIconToggleWithoutMap = config("1 - General", "Allow Icon toggle map closed", Toggle.Off, new ConfigDescription("If on, the portal icons can be toggled on and off with the hotkey, even if the map is not opened."), false);
+		gamepadTeleportButton = config("1 - General", "Gamepad teleport button", GamepadButton.A, new ConfigDescription("Gamepad button that teleports to the portal under the map crosshair."), false);
+		gamepadFavoriteButton = config("1 - General", "Gamepad favorite button", GamepadButton.Y, new ConfigDescription("Gamepad button that toggles the portal under the map crosshair as a favorite. Y is the only face button the vanilla map leaves unused."), false);
+		gamepadCycleFavoritesButton = config("1 - General", "Gamepad cycle favorites button", GamepadButton.DPadLeft, new ConfigDescription("Gamepad button that moves the map to the next favorite portal, placing it under the crosshair."), false);
 
 		Assembly assembly = Assembly.GetExecutingAssembly();
 		Harmony harmony = new(ModGUID);
@@ -220,6 +254,36 @@ public class TargetPortal : BaseUnityPlugin
 		}
 	}
 
+	// Valheim resolves the interact modifier per input device and layout in Player.Update and hands
+	// the result to Interact as alt, so on a gamepad we just honour that instead of reading a
+	// keyboard key. The configured shortcut stays authoritative for keyboard and mouse.
+	private static bool PortalModeToggleRequested(bool alt)
+	{
+		if (portalModeToggleModifierKey.Value.MainKey is KeyCode.None)
+		{
+			return false;
+		}
+
+		if (ZInput.IsGamepadActive())
+		{
+			return alt;
+		}
+
+		return Input.GetKey(portalModeToggleModifierKey.Value.MainKey) && portalModeToggleModifierKey.Value.Modifiers.All(Input.GetKey);
+	}
+
+	// Mirrors the branch Player.Update takes when it computes alt, so the hint names the button that
+	// actually works. On a gamepad this resolves to a controller glyph rather than a key name.
+	private static string PortalModeToggleHint()
+	{
+		if (!ZInput.IsGamepadActive())
+		{
+			return portalModeToggleModifierKey.Value.ToString();
+		}
+
+		return Localization.instance.GetBoundKeyString(ZInput.IsNonClassicFunctionality() ? "JoyAltKeys" : "JoyAltPlace");
+	}
+
 	[HarmonyPatch(typeof(TeleportWorld), nameof(TeleportWorld.GetHoverText))]
 	private class OverrideHoverText
 	{
@@ -241,7 +305,7 @@ public class TargetPortal : BaseUnityPlugin
 				mode = PortalMode.Private;
 			}
 
-			__result = __result.Replace(Localization.instance.Localize("$piece_portal_connected"), mode + (mode is PortalMode.Public or PortalMode.Admin ? "" : $" (Owner: {__instance.m_nview.GetZDO().GetString("TargetPortal PortalOwnerName")})")) + $"\n[<b><color=yellow>{portalModeToggleModifierKey.Value}</color> + <color=yellow>{Localization.instance.Localize("$KEY_Use")}</color></b>] Toggle Mode";
+			__result = __result.Replace(Localization.instance.Localize("$piece_portal_connected"), mode + (mode is PortalMode.Public or PortalMode.Admin ? "" : $" (Owner: {__instance.m_nview.GetZDO().GetString("TargetPortal PortalOwnerName")})")) + $"\n[<b><color=yellow>{PortalModeToggleHint()}</color> + <color=yellow>{Localization.instance.Localize("$KEY_Use")}</color></b>] Toggle Mode";
 		}
 	}
 
@@ -281,14 +345,14 @@ public class TargetPortal : BaseUnityPlugin
 	[HarmonyPatch(typeof(TeleportWorld), nameof(TeleportWorld.Interact))]
 	private class TogglePortalMode
 	{
-		public static bool Prefix(TeleportWorld __instance, bool hold)
+		public static bool Prefix(TeleportWorld __instance, bool hold, bool alt)
 		{
 			if (hold || allowNonPublicPortals.Value == Toggle.Off || (limitToVanillaPortals.Value == Toggle.On && Utils.GetPrefabName(__instance.gameObject) is not "portal_wood" and not "portal_stone"))
 			{
 				return true;
 			}
 
-			if (Input.GetKey(portalModeToggleModifierKey.Value.MainKey) && portalModeToggleModifierKey.Value.Modifiers.All(Input.GetKey))
+			if (PortalModeToggleRequested(alt))
 			{
 				int mode = __instance.m_nview.GetZDO().GetInt("TargetPortal PortalMode");
 				++mode;
