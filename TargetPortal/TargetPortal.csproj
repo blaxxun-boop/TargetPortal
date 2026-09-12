@@ -51,6 +51,29 @@
             </PropertyGroup>
         </When>
     </Choose>
+    <PropertyGroup>
+        <!-- UnityEngine.ImageConversionModule targets netstandard 2.1, which the .NET Framework 4.8
+             reference assemblies cannot satisfy: referencing it yields CS1705, and pulling in
+             netstandard 2.1 only moves the failure to CS0518 for ReadOnlySpan, because its type
+             forwards dangle off the net48 mscorlib. Resolve the BCL from the game's own Unity/Mono
+             profile instead, which is what the assemblies were built against. -->
+        <NoStdLib>true</NoStdLib>
+        <AssemblySearchPaths>{CandidateAssemblyFiles};{HintPathFromItem};$(GamePath)\valheim_Data\Managed;{TargetFrameworkDirectory};{RawFileName};$(OutDir)</AssemblySearchPaths>
+    </PropertyGroup>
+    <ItemGroup>
+        <Reference Include="mscorlib">
+            <HintPath>$(GamePath)\valheim_Data\Managed\mscorlib.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="netstandard">
+            <HintPath>$(GamePath)\valheim_Data\Managed\netstandard.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="System.Memory">
+            <HintPath>$(GamePath)\valheim_Data\Managed\System.Memory.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+    </ItemGroup>
     <ItemGroup>
         <Reference Include="0Harmony, Version=2.9.0.0, Culture=neutral, PublicKeyToken=null">
             <HintPath>$(GamePath)\BepInEx\core\0Harmony.dll</HintPath>
@@ -95,7 +118,7 @@
             <HintPath>$(GamePath)\valheim_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
         </Reference>
         <Reference Include="UnityEngine.ImageConversionModule">
-            <HintPath>$(GamePath)\valheim_Data\Managed\UnityEngine.ImageConversionModuleOld.dll</HintPath>
+            <HintPath>$(GamePath)\valheim_Data\Managed\UnityEngine.ImageConversionModule.dll</HintPath>
         </Reference>
         <Reference Include="UnityEngine.InputLegacyModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
             <HintPath>$(GamePath)\valheim_Data\Managed\UnityEngine.InputLegacyModule.dll</HintPath>
