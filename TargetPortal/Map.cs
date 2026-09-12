@@ -21,6 +21,15 @@ public static class Map
 	private static bool shouldPortalsBeVisible = false;
 	private static bool[]? visibleIconTypes;
 	private static GameObject favoriteList = null!;
+	private static readonly List<FavoriteEntry> favorites = new();
+	private static int favoriteCycleIndex = -1;
+
+	private class FavoriteEntry
+	{
+		public Minimap.PinData Pin = null!;
+		public TextMeshProUGUI Label = null!;
+		public Color LabelColor;
+	}
 
 	[HarmonyPatch(typeof(TeleportWorldTrigger), nameof(TeleportWorldTrigger.OnTriggerEnter))]
 	private class OpenMapOnPortalEnter
@@ -102,6 +111,9 @@ public static class Map
 
 	public static void CancelTeleport()
 	{
+		// Runs before the entries are torn down below, while the labels are still alive.
+		ClearFavoriteHighlight();
+
 		Teleporting = false;
 
 		if (!shouldPortalsBeVisible)
@@ -260,6 +272,46 @@ public static class Map
 		FillFavorites();
 	}
 
+	// The favorite list sits outside the map pane, so the gamepad crosshair - which is locked to the
+	// center of the screen and samples the map surface - can never be aimed at it. Instead of making
+	// the list selectable, move the map so the favorite lands under the crosshair, which leaves the
+	// existing teleport path to do the rest.
+	private static void CycleToNextFavorite()
+	{
+		if (favorites.Count == 0)
+		{
+			return;
+		}
+
+		favoriteCycleIndex = (favoriteCycleIndex + 1) % favorites.Count;
+
+		Vector3 offset = favorites[favoriteCycleIndex].Pin.m_pos - Player.m_localPlayer.transform.position;
+		Minimap.instance.m_mapOffset = new Vector3(offset.x, 0f, offset.z);
+		Minimap.instance.m_pinUpdateRequired = true;
+
+		UpdateFavoriteHighlight();
+	}
+
+	// Panning by hand moves the crosshair off whatever was jumped to, so the highlight stops being true.
+	private static void ClearFavoriteHighlight()
+	{
+		if (favoriteCycleIndex < 0)
+		{
+			return;
+		}
+
+		favoriteCycleIndex = -1;
+		UpdateFavoriteHighlight();
+	}
+
+	private static void UpdateFavoriteHighlight()
+	{
+		for (int i = 0; i < favorites.Count; ++i)
+		{
+			favorites[i].Label.color = i == favoriteCycleIndex ? Color.yellow : favorites[i].LabelColor;
+		}
+	}
+
 	// A gamepad never produces the pointer events that drive OnMapLeftClick / RemovePinUnderPointer,
 	// so the portal selection has to be read off the buttons directly.
 	[HarmonyPatch(typeof(Minimap), nameof(Minimap.Update))]
@@ -297,6 +349,14 @@ public static class Map
 			else if (ButtonDown(TargetPortal.gamepadFavoriteButton.Value) && GetClosestPortal(out _, out ZDO? portalZDO))
 			{
 				ToggleFavoritePortal(portalZDO!);
+			}
+			else if (ButtonDown(TargetPortal.gamepadCycleFavoritesButton.Value))
+			{
+				CycleToNextFavorite();
+			}
+			else if (Mathf.Abs(ZInput.GetJoyLeftStickX()) > 0.1f || Mathf.Abs(ZInput.GetJoyLeftStickY()) > 0.1f)
+			{
+				ClearFavoriteHighlight();
 			}
 		}
 	}
@@ -386,6 +446,9 @@ public static class Map
 		{
 			Object.Destroy(favoriteList.transform.GetChild(i).gameObject);
 		}
+
+		favorites.Clear();
+		favoriteCycleIndex = -1;
 	}
 
 	private static void FillFavorites()
@@ -409,8 +472,10 @@ public static class Map
 					favoriteEntry.GetComponent<HorizontalLayoutGroup>().childAlignment = TextAnchor.MiddleLeft;
 					Transform label = favoriteEntry.transform.Find("Label");
 					label.SetAsLastSibling();
-					label.GetComponent<TextMeshProUGUI>().text = pin.m_name;
+					TextMeshProUGUI labelText = label.GetComponent<TextMeshProUGUI>();
+					labelText.text = pin.m_name;
 					label.GetComponent<RectTransform>().pivot = new Vector2(0, 0.5f);
+					favorites.Add(new FavoriteEntry { Pin = pin, Label = labelText, LabelColor = labelText.color });
 					Image portalIcon = favoriteEntry.transform.Find("keyboard_hint").GetComponent<Image>();
 					portalIcon.sprite = pin.m_icon;
 					portalIcon.gameObject.AddComponent<FavoriteClicked>().Pin = pin;

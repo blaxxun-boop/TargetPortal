@@ -44,6 +44,7 @@ public class TargetPortal : BaseUnityPlugin
 	public static ConfigEntry<Toggle> allowIconToggleWithoutMap = null!;
 	public static ConfigEntry<GamepadButton> gamepadTeleportButton = null!;
 	public static ConfigEntry<GamepadButton> gamepadFavoriteButton = null!;
+	public static ConfigEntry<GamepadButton> gamepadCycleFavoritesButton = null!;
 
 	private ConfigEntry<T> config<T>(string group, string name, T value, ConfigDescription description, bool synchronizedSetting = true)
 	{
@@ -89,6 +90,7 @@ public class TargetPortal : BaseUnityPlugin
 		RightBumper,
 		LeftTrigger,
 		RightTrigger,
+		DPadLeft,
 	}
 
 	// B is deliberately absent: the map uses it to close, which doubles as cancelling the teleport.
@@ -101,6 +103,8 @@ public class TargetPortal : BaseUnityPlugin
 		GamepadButton.RightBumper => "JoyRBumper",
 		GamepadButton.LeftTrigger => "JoyLTrigger",
 		GamepadButton.RightTrigger => "JoyRTrigger",
+		// The other three directions drive the vanilla pin type and icon filters on the large map.
+		GamepadButton.DPadLeft => "JoyDPadLeft",
 		_ => null,
 	};
 
@@ -122,6 +126,7 @@ public class TargetPortal : BaseUnityPlugin
 		allowIconToggleWithoutMap = config("1 - General", "Allow Icon toggle map closed", Toggle.Off, new ConfigDescription("If on, the portal icons can be toggled on and off with the hotkey, even if the map is not opened."), false);
 		gamepadTeleportButton = config("1 - General", "Gamepad teleport button", GamepadButton.A, new ConfigDescription("Gamepad button that teleports to the portal under the map crosshair."), false);
 		gamepadFavoriteButton = config("1 - General", "Gamepad favorite button", GamepadButton.Y, new ConfigDescription("Gamepad button that toggles the portal under the map crosshair as a favorite. Y is the only face button the vanilla map leaves unused."), false);
+		gamepadCycleFavoritesButton = config("1 - General", "Gamepad cycle favorites button", GamepadButton.DPadLeft, new ConfigDescription("Gamepad button that moves the map to the next favorite portal, placing it under the crosshair."), false);
 
 		Assembly assembly = Assembly.GetExecutingAssembly();
 		Harmony harmony = new(ModGUID);
